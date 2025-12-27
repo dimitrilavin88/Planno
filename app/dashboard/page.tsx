@@ -22,7 +22,11 @@ export default async function DashboardPage() {
   }
 
   const username = userProfile?.username || 'yourusername'
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  // Get base URL: prefer NEXT_PUBLIC_SITE_URL, fallback to VERCEL_URL (auto-provided by Vercel), then localhost for dev
+  const baseUrl = 
+    process.env.NEXT_PUBLIC_SITE_URL || 
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    'http://localhost:3000'
 
   // Fetch user's availability rules
   const { data: availabilityRules } = await supabase
