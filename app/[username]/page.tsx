@@ -23,6 +23,13 @@ export default async function UserSchedulingPage({ params }: PageProps) {
     notFound()
   }
 
+  // Get user's display name from auth metadata
+  const { data: displayNameData, error: displayNameError } = await supabase.rpc('get_user_display_name', {
+    p_user_id: user.id
+  })
+  // Use display name from metadata, fallback to username if not available
+  const displayName = (displayNameData && typeof displayNameData === 'string') ? displayNameData : username
+
   // Fetch active event types for this user
   const { data: eventTypes } = await supabase
     .from('event_types')
@@ -35,8 +42,8 @@ export default async function UserSchedulingPage({ params }: PageProps) {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-sm p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Schedule a meeting with {username}
+          <h1 className="text-3xl font-serif font-bold text-navy-900 mb-2">
+            Schedule a meeting with {displayName}
           </h1>
           <p className="text-gray-600 mb-8">
             Select an event type below to see available times
