@@ -2,7 +2,9 @@
 // This function sends confirmation emails and calendar invites via Mailgun
 // Triggered after a meeting is booked
 
+// @ts-ignore - Deno imports work at runtime in Supabase Edge Functions
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+// @ts-ignore - Deno imports work at runtime in Supabase Edge Functions
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -11,9 +13,13 @@ const corsHeaders = {
 }
 
 // Mailgun configuration
+// @ts-ignore - Deno is available at runtime in Supabase Edge Functions
 const MAILGUN_API_KEY = Deno.env.get('MAILGUN_API_KEY') || ''
+// @ts-ignore - Deno is available at runtime in Supabase Edge Functions
 const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN') || ''
+// @ts-ignore - Deno is available at runtime in Supabase Edge Functions
 const MAILGUN_FROM_EMAIL = Deno.env.get('MAILGUN_FROM_EMAIL') || `noreply@${MAILGUN_DOMAIN}`
+// @ts-ignore - Deno is available at runtime in Supabase Edge Functions
 const SITE_URL = Deno.env.get('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000'
 
 // Helper function to send email via Mailgun
@@ -99,7 +105,20 @@ function generateConfirmationEmail(
       )
     : 30
 
-  const location = meeting.location || eventType?.location || 'Video Call'
+  // Determine location display
+  let location = 'TBD'
+  if (meeting.location) {
+    location = meeting.location
+  } else if (eventType?.location) {
+    location = eventType.location
+  } else if (meeting.location_type === 'video' || eventType?.location_type === 'video') {
+    location = 'Video Call (link will be sent)'
+  } else if (meeting.location_type === 'phone' || eventType?.location_type === 'phone') {
+    location = 'Phone Call (details will be sent)'
+  } else if (meeting.location_type === 'in_person' || eventType?.location_type === 'in_person') {
+    location = 'In Person (location TBD)'
+  }
+  
   const meetingTitle = meeting.title || eventType?.name || 'Meeting'
 
   return `
@@ -110,8 +129,8 @@ function generateConfirmationEmail(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-    <h1 style="margin: 0; font-size: 24px;">Meeting Confirmed</h1>
+  <div style="background-color: #102a43; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0; font-size: 24px; font-family: Georgia, serif;">Meeting Confirmed</h1>
   </div>
   
   <div style="background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px;">
@@ -119,7 +138,7 @@ function generateConfirmationEmail(
     
     <p style="font-size: 16px;">Your meeting has been confirmed!</p>
     
-    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4F46E5;">
+    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #102a43;">
       <h2 style="margin-top: 0; color: #1f2937;">${meetingTitle}</h2>
       
       <table style="width: 100%; border-collapse: collapse;">
@@ -160,8 +179,11 @@ serve(async (req) => {
   }
 
   try {
+    // @ts-ignore - Deno is available at runtime in Supabase Edge Functions
     const supabaseClient = createClient(
+      // @ts-ignore - Deno is available at runtime in Supabase Edge Functions
       Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore - Deno is available at runtime in Supabase Edge Functions
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         auth: {
@@ -171,10 +193,50 @@ serve(async (req) => {
       }
     )
 
-    const { meeting_id } = await req.json()
+    // Handle both POST (from webhook) and GET (for testing)
+    // Supabase webhooks may send data in query params or body
+    let meeting_id: string | null = null
+    
+    // First, try to get from URL query parameters (for Supabase webhooks)
+    const url = new URL(req.url)
+    meeting_id = url.searchParams.get('meeting_id')
+    
+    // If not in query params, try request body (for direct API calls)
+    if (!meeting_id && req.method === 'POST') {
+      try {
+        const body = await req.json()
+        meeting_id = body.meeting_id || body.id || body.record?.id
+      } catch {
+        // Body parsing failed, already tried URL
+      }
+    }
+    
+    // Also check if Supabase webhook sent the row data directly
+    if (!meeting_id && req.method === 'POST') {
+      try {
+        const body = await req.json()
+        // Supabase webhooks might send: { type: 'INSERT', table: 'meetings', record: { id: '...' } }
+        if (body.record?.id) {
+          meeting_id = body.record.id
+        } else if (body.id) {
+          meeting_id = body.id
+        }
+      } catch {
+        // Ignore
+      }
+    }
 
     if (!meeting_id) {
-      throw new Error('meeting_id is required')
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'meeting_id is required',
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      )
     }
 
     // Fetch meeting details
@@ -198,7 +260,30 @@ serve(async (req) => {
       .single()
 
     if (meetingError || !meeting) {
-      throw new Error('Meeting not found')
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Meeting not found',
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404,
+        }
+      )
+    }
+
+    // Skip if meeting is cancelled
+    if (meeting.status === 'cancelled') {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Meeting is cancelled, skipping email',
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      )
     }
 
     const eventType = Array.isArray(meeting.event_types)
@@ -210,7 +295,16 @@ serve(async (req) => {
     const guestParticipants = participants.filter((p: any) => !p.is_host)
 
     if (participants.length === 0) {
-      throw new Error('No participants found for meeting')
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'No participants found for meeting',
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      )
     }
 
     const meetingTitle = meeting.title || eventType?.name || 'Meeting'

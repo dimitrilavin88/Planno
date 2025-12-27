@@ -17,8 +17,11 @@ serve(async (req) => {
   }
 
   try {
+    // @ts-ignore - Deno is available at runtime in Supabase Edge Functions
     const supabaseClient = createClient(
+      // @ts-ignore - Deno is available at runtime in Supabase Edge Functions
       Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore - Deno is available at runtime in Supabase Edge Functions
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         auth: {
@@ -28,10 +31,32 @@ serve(async (req) => {
       }
     )
 
-    const { meeting_id } = await req.json()
+    // Handle both POST (from webhook) and GET (for testing)
+    let meeting_id: string | null = null
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json()
+        meeting_id = body.meeting_id
+      } catch {
+        const url = new URL(req.url)
+        meeting_id = url.searchParams.get('meeting_id')
+      }
+    } else if (req.method === 'GET') {
+      const url = new URL(req.url)
+      meeting_id = url.searchParams.get('meeting_id')
+    }
 
     if (!meeting_id) {
-      throw new Error('meeting_id is required')
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'meeting_id is required',
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      )
     }
 
     // Fetch meeting details
@@ -55,7 +80,16 @@ serve(async (req) => {
       .single()
 
     if (meetingError || !meeting) {
-      throw new Error('Meeting not found')
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Meeting not found',
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404,
+        }
+      )
     }
 
     const eventType = Array.isArray(meeting.event_types)
@@ -70,25 +104,57 @@ serve(async (req) => {
       .eq('is_active', true)
 
     // Create calendar events for each connected calendar
-    const results = []
-    for (const calendar of calendars || []) {
+    const results: Array<{
+      calendar_id: string
+      provider: string
+      status: string
+      error?: string
+    }> = []
+    
+    if (!calendars || calendars.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'No active calendars found for host',
+          results: [],
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      )
+    }
+
+    for (const calendar of calendars) {
       try {
         if (calendar.provider === 'google') {
           // TODO: Implement Google Calendar API integration
+          // This requires OAuth setup and Google Calendar API
           // const googleEvent = await createGoogleCalendarEvent(calendar, meeting, eventType)
-          results.push({ calendar_id: calendar.id, provider: 'google', status: 'pending' })
+          results.push({
+            calendar_id: calendar.id,
+            provider: 'google',
+            status: 'not_implemented',
+            error: 'Google Calendar integration not yet implemented',
+          })
         } else if (calendar.provider === 'outlook') {
           // TODO: Implement Outlook Calendar API integration
+          // This requires OAuth setup and Microsoft Graph API
           // const outlookEvent = await createOutlookCalendarEvent(calendar, meeting, eventType)
-          results.push({ calendar_id: calendar.id, provider: 'outlook', status: 'pending' })
+          results.push({
+            calendar_id: calendar.id,
+            provider: 'outlook',
+            status: 'not_implemented',
+            error: 'Outlook Calendar integration not yet implemented',
+          })
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Failed to create event in ${calendar.provider}:`, error)
         results.push({
           calendar_id: calendar.id,
           provider: calendar.provider,
           status: 'error',
-          error: error.message,
+          error: error?.message || 'Unknown error',
         })
       }
     }
@@ -96,6 +162,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        message: 'Calendar event creation attempted (integration pending)',
         results,
       }),
       {
