@@ -37,6 +37,7 @@ export default function ProfileSetupPage() {
     } catch (e) {
       // Ignore errors
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {

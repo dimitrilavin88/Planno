@@ -24,7 +24,7 @@ export function RedirectToHostScheduling({
 
   return (
     <p className="text-sm text-gray-500 text-center">
-      Redirecting to {hostUsername}'s scheduling page in {delaySeconds} seconds...
+      Redirecting to {hostUsername}&apos;s scheduling page in {delaySeconds} seconds...
     </p>
   )
 }

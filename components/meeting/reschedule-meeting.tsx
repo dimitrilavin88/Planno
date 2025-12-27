@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -50,13 +50,7 @@ export default function RescheduleMeeting({
     setSelectedDate(currentDate.toISOString().split('T')[0])
   }, [currentStartTime])
 
-  useEffect(() => {
-    if (selectedDate) {
-      loadTimeSlots()
-    }
-  }, [selectedDate, timezone])
-
-  const loadTimeSlots = async () => {
+  const loadTimeSlots = useCallback(async () => {
     if (!selectedDate) return
 
     setLoading(true)
@@ -92,7 +86,13 @@ export default function RescheduleMeeting({
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedDate, timezone, eventTypeId, currentStartTime])
+
+  useEffect(() => {
+    if (selectedDate) {
+      loadTimeSlots()
+    }
+  }, [selectedDate, loadTimeSlots])
 
   const handleReschedule = async () => {
     if (!selectedSlot) return

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -59,14 +59,7 @@ export default function BookingFlow({
     setSelectedDate(tomorrow.toISOString().split('T')[0])
   }, [])
 
-  // Load time slots when date changes
-  useEffect(() => {
-    if (selectedDate) {
-      loadTimeSlots()
-    }
-  }, [selectedDate, timezone])
-
-  const loadTimeSlots = async () => {
+  const loadTimeSlots = useCallback(async () => {
     if (!selectedDate) return
 
     setLoading(true)
@@ -100,7 +93,14 @@ export default function BookingFlow({
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedDate, timezone, eventTypeId])
+
+  // Load time slots when date changes
+  useEffect(() => {
+    if (selectedDate) {
+      loadTimeSlots()
+    }
+  }, [selectedDate, loadTimeSlots])
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault()
