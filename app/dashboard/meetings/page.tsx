@@ -7,6 +7,13 @@ export default async function MeetingsPage() {
   const user = await requireAuth()
   const supabase = await createClient()
 
+  // Get user's timezone
+  const { data: userProfile } = await supabase
+    .from('users')
+    .select('timezone')
+    .eq('id', user.id)
+    .single()
+
   // Fetch upcoming meetings
   const { data: upcomingMeetings } = await supabase
     .from('meetings')
@@ -71,6 +78,7 @@ export default async function MeetingsPage() {
         <MeetingsList
           upcomingMeetings={upcomingMeetings || []}
           pastMeetings={pastMeetings || []}
+          userTimezone={userProfile?.timezone || 'UTC'}
         />
       </div>
     </div>

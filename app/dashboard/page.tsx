@@ -94,27 +94,49 @@ export default async function DashboardPage() {
     return `${displayHour}:${minutes} ${ampm}`
   }
 
-  // Format date and time for meetings
+  // Format date and time for meetings using user's timezone
   const formatMeetingDateTime = (dateTime: string) => {
+    const userTimezone = userProfile?.timezone || 'UTC'
     const date = new Date(dateTime)
-    const today = new Date()
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-
-    // Check if it's today
-    if (date.toDateString() === today.toDateString()) {
-      return `Today at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+    
+    // Create date formatter with user's timezone
+    const timeOptions: Intl.DateTimeFormatOptions = { 
+      hour: 'numeric', 
+      minute: '2-digit', 
+      hour12: true,
+      timeZone: userTimezone
     }
-    // Check if it's tomorrow
-    if (date.toDateString() === tomorrow.toDateString()) {
-      return `Tomorrow at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
-    }
-    // Otherwise show date and time
-    return date.toLocaleDateString('en-US', {
+    const dateOptions: Intl.DateTimeFormatOptions = {
       month: 'short',
       day: 'numeric',
-      year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
-    }) + ' at ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      timeZone: userTimezone
+    }
+    
+    // Get today and tomorrow in user's timezone
+    const now = new Date()
+    const todayInTz = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }))
+    const tomorrowInTz = new Date(todayInTz)
+    tomorrowInTz.setDate(tomorrowInTz.getDate() + 1)
+    
+    const meetingDateInTz = new Date(date.toLocaleString('en-US', { timeZone: userTimezone }))
+    const meetingDateStr = meetingDateInTz.toDateString()
+    const todayStr = todayInTz.toDateString()
+    const tomorrowStr = tomorrowInTz.toDateString()
+
+    // Check if it's today
+    if (meetingDateStr === todayStr) {
+      return `Today at ${date.toLocaleTimeString('en-US', timeOptions)}`
+    }
+    // Check if it's tomorrow
+    if (meetingDateStr === tomorrowStr) {
+      return `Tomorrow at ${date.toLocaleTimeString('en-US', timeOptions)}`
+    }
+    // Otherwise show date and time
+    const yearOptions = date.getFullYear() !== todayInTz.getFullYear() ? { year: 'numeric' as const } : {}
+    return date.toLocaleDateString('en-US', {
+      ...dateOptions,
+      ...yearOptions,
+    }) + ' at ' + date.toLocaleTimeString('en-US', timeOptions)
   }
 
   return (

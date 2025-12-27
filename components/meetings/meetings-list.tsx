@@ -27,34 +27,41 @@ interface Meeting {
 interface Props {
   upcomingMeetings: Meeting[]
   pastMeetings: Meeting[]
+  userTimezone?: string
 }
 
-export default function MeetingsList({ upcomingMeetings, pastMeetings }: Props) {
+export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimezone = 'UTC' }: Props) {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
 
   const formatDateTime = (timestamp: string) => {
     const date = new Date(timestamp)
+    const timeOptions: Intl.DateTimeFormatOptions = {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: userTimezone,
+    }
+    const dateOptions: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: userTimezone,
+    }
+    const datetimeOptions: Intl.DateTimeFormatOptions = {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: userTimezone,
+    }
     return {
-      date: date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }),
-      time: date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      }),
-      datetime: date.toLocaleString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      }),
+      date: date.toLocaleDateString('en-US', dateOptions),
+      time: date.toLocaleTimeString('en-US', timeOptions),
+      datetime: date.toLocaleString('en-US', datetimeOptions),
     }
   }
 

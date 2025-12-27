@@ -531,7 +531,12 @@ ORDER BY start_time LOOP v_slot_start := v_availability_rule.start_time;
 v_slot_end := v_availability_rule.end_time;
 WHILE v_slot_start + (v_event_type.duration_minutes || ' minutes')::INTERVAL <= v_slot_end LOOP v_utc_slot_start := (v_current_date + v_slot_start)::TIMESTAMP AT TIME ZONE v_event_type.user_timezone;
 v_utc_slot_end := v_utc_slot_start + (v_event_type.duration_minutes || ' minutes')::INTERVAL;
-IF v_utc_slot_start < NOW() + (v_event_type.minimum_notice_hours || ' hours')::INTERVAL THEN v_slot_start := v_slot_start + '30 minutes'::INTERVAL;
+-- Only apply minimum notice check if the slot is on today's date
+-- Future dates should always be available (subject to other constraints)
+IF DATE(
+    v_utc_slot_start AT TIME ZONE v_event_type.user_timezone
+) = DATE(NOW() AT TIME ZONE v_event_type.user_timezone)
+AND v_utc_slot_start < NOW() + (v_event_type.minimum_notice_hours || ' hours')::INTERVAL THEN v_slot_start := v_slot_start + '30 minutes'::INTERVAL;
 CONTINUE;
 END IF;
 v_utc_slot_start := v_utc_slot_start - (v_event_type.buffer_before_minutes || ' minutes')::INTERVAL;
@@ -1118,9 +1123,15 @@ WHILE v_slot_start + (
 v_utc_slot_end := v_utc_slot_start + (
     v_group_event_type.duration_minutes || ' minutes'
 )::INTERVAL;
-IF v_utc_slot_start >= NOW() + (
-    v_group_event_type.minimum_notice_hours || ' hours'
-)::INTERVAL THEN IF NOT EXISTS (
+-- Only apply minimum notice check if the slot is on today's date
+-- Future dates should always be available (subject to other constraints)
+IF (
+    DATE(v_utc_slot_start AT TIME ZONE v_host.timezone) = DATE(NOW() AT TIME ZONE v_host.timezone)
+    AND v_utc_slot_start >= NOW() + (
+        v_group_event_type.minimum_notice_hours || ' hours'
+    )::INTERVAL
+)
+OR DATE(v_utc_slot_start AT TIME ZONE v_host.timezone) > DATE(NOW() AT TIME ZONE v_host.timezone) THEN IF NOT EXISTS (
     SELECT 1
     FROM public.meetings
     WHERE host_user_id = v_host.id
