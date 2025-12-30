@@ -1,47 +1,22 @@
-// Supabase Edge Function: Send Email (Template/Example)
-// This is a template file - actual email functions are in send-booking-email and send-reminder-email
+// Follow this setup guide to integrate the Deno language server with your editor:
+// https://deno.land/manual/getting_started/setup_your_environment
+// This enables autocomplete, go to definition, etc.
 
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+console.log("Hello from Functions!")
 
-// @ts-ignore - Deno is available at runtime in Supabase Edge Functions
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  const { name } = await req.json()
+  const data = {
+    message: `Hello ${name}!`,
   }
 
-  try {
-    const { name } = await req.json()
-    const data = {
-      message: `Hello ${name}!`,
-    }
-
-    return new Response(
-      JSON.stringify(data),
-      { 
-        headers: { 
-          ...corsHeaders,
-          "Content-Type": "application/json" 
-        } 
-      },
-    )
-  } catch (error: any) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error?.message || 'Unknown error',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    )
-  }
+  return new Response(
+    JSON.stringify(data),
+    { headers: { "Content-Type": "application/json" } },
+  )
 })
 
 /* To invoke locally:

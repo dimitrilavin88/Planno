@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { RedirectToHostScheduling } from './redirect-component'
+import AddToCalendarButton from './add-to-calendar-button'
 
 interface PageProps {
   params: Promise<{
@@ -119,21 +119,33 @@ export default async function BookingConfirmedPage({ params }: PageProps) {
           </div>
 
           <p className="text-sm text-gray-600 mb-6">
-            A confirmation email has been sent to your email address with meeting details and
-            calendar invite.
+            A confirmation email has been sent to your email address with meeting details.
           </p>
 
-          <div className="space-y-3">
-            {hostUsername && (
-              <RedirectToHostScheduling hostUsername={hostUsername} />
-            )}
-            <Link
-              href={hostUsername ? `/${hostUsername}` : '/'}
-              className="block w-full px-4 py-2 bg-navy-900 text-white rounded-md hover:bg-navy-800 text-center transition-colors"
-            >
-              {hostUsername ? `Back to ${hostUsername}'s Scheduling` : 'Back to Home'}
-            </Link>
+          {/* Add to Calendar Section */}
+          <div className="mb-6">
+            <p className="text-sm font-medium text-gray-700 mb-3">Add to Calendar:</p>
+            <AddToCalendarButton
+              meeting={{
+                title: eventType.name,
+                description: eventType.description || '',
+                startTime: meeting.start_time,
+                endTime: meeting.end_time,
+                location: eventType.location || '',
+                timezone: meeting.timezone || 'UTC',
+              }}
+            />
           </div>
+
+          {/* Back to Scheduling Button */}
+          {hostUsername && (
+            <Link
+              href={`/${hostUsername}`}
+              className="block w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 text-center transition-colors font-medium"
+            >
+              Back to {hostUsername}&apos;s Scheduling Page
+            </Link>
+          )}
         </div>
       </div>
     </div>

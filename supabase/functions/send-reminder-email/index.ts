@@ -2,9 +2,7 @@
 // This function sends reminder emails to meeting participants
 // Can be called via scheduled job or cron
 
-// @ts-ignore - Deno imports work at runtime in Supabase Edge Functions
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-// @ts-ignore - Deno imports work at runtime in Supabase Edge Functions
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -13,13 +11,9 @@ const corsHeaders = {
 }
 
 // Mailgun configuration
-// @ts-ignore - Deno is available at runtime in Supabase Edge Functions
 const MAILGUN_API_KEY = Deno.env.get('MAILGUN_API_KEY') || ''
-// @ts-ignore - Deno is available at runtime in Supabase Edge Functions
 const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN') || ''
-// @ts-ignore - Deno is available at runtime in Supabase Edge Functions
 const MAILGUN_FROM_EMAIL = Deno.env.get('MAILGUN_FROM_EMAIL') || `noreply@${MAILGUN_DOMAIN}`
-// @ts-ignore - Deno is available at runtime in Supabase Edge Functions
 const REMINDER_HOURS_BEFORE = parseInt(Deno.env.get('REMINDER_HOURS_BEFORE') || '24', 10)
 
 // Helper function to send email via Mailgun
@@ -105,20 +99,7 @@ function generateReminderEmail(
       )
     : 30
 
-  // Determine location display
-  let location = 'TBD'
-  if (meeting.location) {
-    location = meeting.location
-  } else if (eventType?.location) {
-    location = eventType.location
-  } else if (meeting.location_type === 'video' || eventType?.location_type === 'video') {
-    location = 'Video Call'
-  } else if (meeting.location_type === 'phone' || eventType?.location_type === 'phone') {
-    location = 'Phone Call'
-  } else if (meeting.location_type === 'in_person' || eventType?.location_type === 'in_person') {
-    location = 'In Person'
-  }
-  
+  const location = meeting.location || eventType?.location || 'Video Call'
   const meetingTitle = meeting.title || eventType?.name || 'Meeting'
 
   return `
@@ -129,8 +110,8 @@ function generateReminderEmail(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background-color: #102a43; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-    <h1 style="margin: 0; font-size: 24px; font-family: Georgia, serif;">Meeting Reminder</h1>
+  <div style="background-color: #F59E0B; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0; font-size: 24px;">Meeting Reminder</h1>
   </div>
   
   <div style="background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px;">
@@ -140,7 +121,7 @@ function generateReminderEmail(
       This is a reminder that you have a meeting coming up in ${hoursUntil} hour${hoursUntil !== 1 ? 's' : ''}!
     </p>
     
-    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #102a43;">
+    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #F59E0B;">
       <h2 style="margin-top: 0; color: #1f2937;">${meetingTitle}</h2>
       
       <table style="width: 100%; border-collapse: collapse;">
@@ -179,11 +160,8 @@ serve(async (req) => {
   }
 
   try {
-    // @ts-ignore - Deno is available at runtime in Supabase Edge Functions
     const supabaseClient = createClient(
-      // @ts-ignore - Deno is available at runtime in Supabase Edge Functions
       Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore - Deno is available at runtime in Supabase Edge Functions
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         auth: {
@@ -194,21 +172,7 @@ serve(async (req) => {
     )
 
     // Get meeting_id from request body or query params
-    let body: any = {}
-    if (req.method === 'POST') {
-      try {
-        body = await req.json()
-      } catch {
-        // If body is empty, use empty object
-        body = {}
-      }
-    } else if (req.method === 'GET') {
-      const url = new URL(req.url)
-      body = {
-        meeting_id: url.searchParams.get('meeting_id') || undefined,
-        hours_before: url.searchParams.get('hours_before') || undefined,
-      }
-    }
+    const body = req.method === 'POST' ? await req.json() : {}
     const { meeting_id, hours_before } = body
 
     // If meeting_id is provided, send reminder for that specific meeting
@@ -233,30 +197,7 @@ serve(async (req) => {
         .single()
 
       if (meetingError || !meeting) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Meeting not found',
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 404,
-          }
-        )
-      }
-
-      // Skip if meeting is cancelled or completed
-      if (meeting.status !== 'confirmed') {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: `Meeting status is ${meeting.status}, skipping reminder`,
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-          }
-        )
+        throw new Error('Meeting not found')
       }
 
       const eventType = Array.isArray(meeting.event_types)
@@ -264,12 +205,7 @@ serve(async (req) => {
         : meeting.event_types
 
       const participants = meeting.participants || []
-      
-      // Calculate actual hours until meeting
-      const meetingTime = new Date(meeting.start_time)
-      const now = new Date()
-      const actualHoursUntil = Math.round((meetingTime.getTime() - now.getTime()) / (1000 * 60 * 60))
-      const hoursUntil = hours_before || actualHoursUntil || REMINDER_HOURS_BEFORE
+      const hoursUntil = hours_before || REMINDER_HOURS_BEFORE
 
       const emailSubject = `Reminder: ${meeting.title || eventType?.name || 'Meeting'} in ${hoursUntil} hour${hoursUntil !== 1 ? 's' : ''}`
 
@@ -315,10 +251,8 @@ serve(async (req) => {
     }
 
     // Otherwise, find meetings that need reminders
-    // Calculate the time window: meetings starting between now + REMINDER_HOURS_BEFORE
-    const now = new Date()
-    const reminderWindowStart = new Date(now.getTime() + REMINDER_HOURS_BEFORE * 60 * 60 * 1000)
-    const reminderWindowEnd = new Date(reminderWindowStart.getTime() + 60 * 60 * 1000) // 1 hour window
+    const reminderTime = new Date()
+    reminderTime.setHours(reminderTime.getHours() + REMINDER_HOURS_BEFORE)
 
     const { data: upcomingMeetings, error: meetingsError } = await supabaseClient
       .from('meetings')
@@ -337,21 +271,12 @@ serve(async (req) => {
         )
       `)
       .eq('status', 'confirmed')
-      .gte('start_time', reminderWindowStart.toISOString())
-      .lte('start_time', reminderWindowEnd.toISOString())
+      .gte('start_time', new Date().toISOString())
+      .lte('start_time', reminderTime.toISOString())
       .order('start_time', { ascending: true })
 
     if (meetingsError) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Failed to fetch meetings: ' + (meetingsError.message || 'Unknown error'),
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        }
-      )
+      throw new Error('Failed to fetch meetings')
     }
 
     if (!upcomingMeetings || upcomingMeetings.length === 0) {
@@ -377,12 +302,7 @@ serve(async (req) => {
         : meeting.event_types
 
       const participants = meeting.participants || []
-      
-      // Calculate actual hours until meeting
-      const meetingTime = new Date(meeting.start_time)
-      const now = new Date()
-      const actualHoursUntil = Math.round((meetingTime.getTime() - now.getTime()) / (1000 * 60 * 60))
-      const hoursUntil = actualHoursUntil || REMINDER_HOURS_BEFORE
+      const hoursUntil = REMINDER_HOURS_BEFORE
 
       const emailSubject = `Reminder: ${meeting.title || eventType?.name || 'Meeting'} in ${hoursUntil} hour${hoursUntil !== 1 ? 's' : ''}`
 
