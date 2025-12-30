@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import DownloadICSButton from '@/components/calendar/download-ics-button'
 
 interface Meeting {
   id: string
@@ -42,20 +43,20 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
       timeZone: userTimezone,
     }
     const dateOptions: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
       timeZone: userTimezone,
     }
     const datetimeOptions: Intl.DateTimeFormatOptions = {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
       timeZone: userTimezone,
     }
     return {
@@ -175,7 +176,7 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
                                 {!participant.is_host && (
                                   <span className="text-gray-500 text-xs ml-2">({participant.email})</span>
                                 )}
-                              </p>
+                        </p>
                             ))}
                           </div>
                         </div>
@@ -188,7 +189,8 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
                     </div>
                   </div>
 
-                  <div className="ml-4 flex space-x-2">
+                  <div className="ml-4 flex items-center space-x-2">
+                    <DownloadICSButton meeting={meeting as any} />
                     {activeTab === 'upcoming' && (
                       <>
                         <Link

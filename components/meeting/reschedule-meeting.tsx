@@ -91,7 +91,7 @@ export default function RescheduleMeeting({
   useEffect(() => {
     if (selectedDate) {
       loadTimeSlots()
-    }
+  }
   }, [selectedDate, loadTimeSlots])
 
   const handleReschedule = async () => {
@@ -111,6 +111,21 @@ export default function RescheduleMeeting({
 
       if (rescheduleError || !data || !data.success) {
         throw new Error(data?.error || rescheduleError?.message || 'Rescheduling failed')
+      }
+
+      // Update calendar event (fire and forget)
+      if (selectedSlot) {
+        fetch('/api/calendar/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            meetingId,
+            newStartTime: selectedSlot.slot_start,
+            newEndTime: selectedSlot.slot_end,
+          }),
+        }).catch((err) => {
+          console.error('Calendar update failed:', err)
+        })
       }
 
       setSuccess(true)

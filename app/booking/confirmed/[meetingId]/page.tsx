@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import AddToCalendarButton from './add-to-calendar-button'
+import Logo from '@/components/logo'
 
 interface PageProps {
   params: Promise<{
@@ -24,6 +25,7 @@ export default async function BookingConfirmedPage({ params }: PageProps) {
         location
       ),
       host:host_user_id (
+        id,
         username
       )
     `)
@@ -40,6 +42,18 @@ export default async function BookingConfirmedPage({ params }: PageProps) {
 
   const host = Array.isArray(meeting.host) ? meeting.host[0] : meeting.host
   const hostUsername = host?.username
+  const hostUserId = host?.id
+
+  // Get host's display name from auth metadata
+  let hostDisplayName = hostUsername
+  if (hostUserId) {
+    const { data: displayNameData } = await supabase.rpc('get_user_display_name', {
+      p_user_id: hostUserId
+    })
+    if (displayNameData && typeof displayNameData === 'string') {
+      hostDisplayName = displayNameData
+    }
+  }
 
   const startDate = new Date(meeting.start_time)
   const endDate = new Date(meeting.end_time)
@@ -47,6 +61,9 @@ export default async function BookingConfirmedPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
+        <div className="mb-6 flex justify-center">
+          <Logo size="md" href="/" />
+        </div>
         <div className="bg-white rounded-lg shadow-lg p-8 text-center">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
             <svg
@@ -143,7 +160,7 @@ export default async function BookingConfirmedPage({ params }: PageProps) {
               href={`/${hostUsername}`}
               className="block w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 text-center transition-colors font-medium"
             >
-              Back to {hostUsername}&apos;s Scheduling Page
+              Back to {hostDisplayName}&apos;s Scheduling Page
             </Link>
           )}
         </div>

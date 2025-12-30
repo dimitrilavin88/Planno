@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Logo from '@/components/logo'
 
 interface PageProps {
   params: Promise<{
@@ -41,6 +42,9 @@ export default async function UserSchedulingPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div className="mb-6 flex justify-center">
+          <Logo size="md" href="/" />
+        </div>
         <div className="bg-white rounded-lg shadow-sm p-8">
           <h1 className="text-3xl font-serif font-bold text-navy-900 mb-2">
             Schedule a meeting with {displayName}

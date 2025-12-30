@@ -42,6 +42,15 @@ export default function CancelMeeting({
         throw new Error(data?.error || cancelError?.message || 'Cancellation failed')
       }
 
+      // Delete calendar event (fire and forget)
+      fetch('/api/calendar/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetingId }),
+      }).catch((err) => {
+        console.error('Calendar deletion failed:', err)
+      })
+
       setCancelled(true)
       setTimeout(() => {
         router.push('/dashboard/meetings')

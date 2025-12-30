@@ -132,6 +132,16 @@ export default function GroupBookingFlow({
         throw new Error(data?.error || bookError?.message || 'Booking failed')
       }
 
+      // Sync to calendar (fire and forget - don't block on this)
+      fetch('/api/calendar/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetingId: data.meeting_id }),
+      }).catch((err) => {
+        console.error('Calendar sync failed:', err)
+        // Don't throw - calendar sync failure shouldn't block booking
+      })
+
       router.push(`/booking/confirmed/${data.meeting_id}`)
     } catch (err: any) {
       setError(err.message || 'Failed to book meeting')

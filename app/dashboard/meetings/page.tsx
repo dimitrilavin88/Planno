@@ -63,9 +63,9 @@ export default async function MeetingsPage() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-serif font-bold text-navy-900">Meetings</h1>
-            <p className="mt-2 text-gray-600">
-              Manage your upcoming and past meetings
-            </p>
+          <p className="mt-2 text-gray-600">
+            Manage your upcoming and past meetings
+          </p>
           </div>
           <Link
             href="/dashboard"

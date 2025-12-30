@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getAuthUser } from '@/lib/auth/utils'
 import { redirect } from 'next/navigation'
+import Logo from '@/components/logo'
 
 export default async function Home() {
   const user = await getAuthUser()
@@ -10,12 +11,15 @@ export default async function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between text-sm">
-        <h1 className="text-4xl font-serif font-bold text-center mb-8 text-navy-900">
+    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-black">
+      <div className="z-10 max-w-5xl w-full items-center justify-center text-center">
+        <div className="mb-12 flex justify-center">
+          <Logo size="lg" variant="dark" />
+        </div>
+        <h1 className="text-4xl font-serif font-bold mb-8 text-white">
           Welcome to Planno
         </h1>
-        <p className="text-center text-gray-600 mb-8">
+        <p className="text-center text-gray-300 mb-8">
           Create shareable scheduling links and manage your meetings
         </p>
         <div className="flex justify-center space-x-4">
