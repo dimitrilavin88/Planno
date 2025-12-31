@@ -194,7 +194,7 @@ export default async function SharedDashboardPage({ params }: PageProps) {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h1 className="text-4xl font-serif font-bold text-navy-900 tracking-tight">
-                  {displayName}'s Dashboard
+                  {displayName}&apos;s Dashboard
                 </h1>
                 <p className="mt-2 text-gray-600 text-lg">
                   {access.permissionLevel === 'edit' 
@@ -352,7 +352,7 @@ export default async function SharedDashboardPage({ params }: PageProps) {
           {access.permissionLevel === 'edit' && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
               <p className="text-sm text-blue-800 font-semibold">
-                You have edit access. You can modify this dashboard's settings.
+                You have edit access. You can modify this dashboard&apos;s settings.
               </p>
             </div>
           )}

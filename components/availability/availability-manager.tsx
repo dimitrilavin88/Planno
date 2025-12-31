@@ -203,7 +203,7 @@ export default function AvailabilityManager({ initialRules, isSharedDashboard = 
 
       {!canEdit && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-          <p className="text-sm text-yellow-800">You are viewing this dashboard in read-only mode. You need 'edit' permission to make changes.</p>
+          <p className="text-sm text-yellow-800">You are viewing this dashboard in read-only mode. You need &apos;edit&apos; permission to make changes.</p>
         </div>
       )}
 

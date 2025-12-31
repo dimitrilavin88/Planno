@@ -280,7 +280,7 @@ export default function DashboardSharingManager({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-navy-900">
-                      {share.owner?.display_name || share.owner?.username || 'Unknown User'}'s Dashboard
+                      {share.owner?.display_name || share.owner?.username || 'Unknown User'}&apos;s Dashboard
                     </p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${

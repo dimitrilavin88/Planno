@@ -99,10 +99,10 @@ export default async function SharedEventTypesPage({ params }: PageProps) {
             className="inline-flex items-center text-navy-700 hover:text-navy-900 text-sm font-semibold transition-all group mb-4"
           >
             <span className="group-hover:-translate-x-1 transition-transform">←</span>
-            <span className="ml-1">Back to {ownerDisplayName || 'Dashboard'}'s Dashboard</span>
+            <span className="ml-1">Back to {ownerDisplayName || 'Dashboard'}&apos;s Dashboard</span>
           </Link>
           <h1 className="text-3xl font-serif font-bold text-navy-900">
-            {ownerDisplayName || 'User'}'s Event Types
+            {ownerDisplayName || 'User'}&apos;s Event Types
           </h1>
           <p className="mt-2 text-gray-600">
             {access.permissionLevel === 'edit' 
