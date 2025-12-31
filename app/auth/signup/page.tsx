@@ -184,7 +184,6 @@ export default function SignupPage() {
             </button>
           </div>
         </form>
-        </div>
       </div>
     </div>
   )
