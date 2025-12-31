@@ -43,10 +43,14 @@ export default function LoginPage() {
     const supabase = createClient()
 
     // Get the correct site URL for email redirects
-    // In production, use the environment variable; in dev, use current origin
+    // Priority: 1. NEXT_PUBLIC_SITE_URL env var, 2. VERCEL_URL (auto-provided by Vercel), 3. current origin, 4. localhost
     const siteUrl = typeof window !== 'undefined' 
-      ? (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)
-      : 'http://localhost:3000'
+      ? (process.env.NEXT_PUBLIC_SITE_URL || 
+         (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+         window.location.origin)
+      : (process.env.NEXT_PUBLIC_SITE_URL || 
+         (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+         'http://localhost:3000')
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
