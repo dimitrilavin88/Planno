@@ -2,6 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Modern custom scrollbar styles for dashboard sections - always visible */
+.dashboard-scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: #64748b #f8fafc;
+  overflow-y: scroll !important;
+}
+
+.dashboard-scrollable::-webkit-scrollbar {
+  width: 12px;
+  display: block !important;
+  -webkit-appearance: none;
+}
+
+.dashboard-scrollable::-webkit-scrollbar-track {
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.dashboard-scrollable::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #94a3b8, #64748b);
+  border-radius: 10px;
+  border: 2px solid #f1f5f9;
+  min-height: 40px;
+}
+
+.dashboard-scrollable::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #64748b, #475569);
+}
+
 :root {
   --background: #ffffff;
   --foreground: #243b53;
@@ -28,5 +58,49 @@ h1, h2, h3, h4, h5, h6 {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* Enhanced visual styling */
+@layer components {
+  /* Modern card with glassmorphism effect */
+  .card-modern {
+    @apply bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 hover:shadow-2xl hover:border-navy-300/50 transition-all duration-300;
+  }
+  
+  /* Modern button with gradient hover */
+  .btn-modern {
+    @apply transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] hover:shadow-xl;
+  }
+  
+  /* Subtle gradient backgrounds */
+  .gradient-subtle {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  }
+  
+  /* Modern glass effect */
+  .glass-effect {
+    @apply bg-white/80 backdrop-blur-md border border-white/20;
+  }
+}
+
+/* Modern animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
 }
 

@@ -150,34 +150,73 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-navy-900 shadow-md border-b border-navy-800">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <nav className="bg-white shadow-lg border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link href="/dashboard">
-                <Logo size="sm" className="text-white" />
+          <div className="flex justify-between items-center h-20">
+            <div className="flex items-center space-x-8">
+              <Link href="/dashboard" className="flex items-center hover:opacity-90 transition-opacity group">
+                <Logo size="lg" variant="light" showText={false} />
               </Link>
-              <span className="ml-3 text-lg font-serif font-semibold text-white">Dashboard</span>
+              <div className="hidden md:flex items-center space-x-1">
+                <Link
+                  href="/dashboard/meetings"
+                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
+                >
+                  Meetings
+                </Link>
+                <Link
+                  href="/dashboard/availability"
+                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
+                >
+                  Availability
+                </Link>
+                <Link
+                  href="/dashboard/event-types"
+                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
+                >
+                  Event Types
+                </Link>
+                <Link
+                  href="/dashboard/group-event-types"
+                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
+                >
+                  Group Events
+                </Link>
+                <Link
+                  href="/dashboard/calendar"
+                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
+                >
+                  Calendar
+                </Link>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-200">{user.email}</span>
+              <span className="text-sm text-gray-600 hidden sm:block">{user.email}</span>
               <LogoutButton />
             </div>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 className="text-2xl font-serif font-semibold text-navy-900 mb-4">
+      <main className="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-0">
+          <div className="mb-8 animate-fade-in">
+            <h1 className="text-4xl font-serif font-bold text-navy-900 tracking-tight">
+              Dashboard
+            </h1>
+            <p className="mt-2 text-gray-600 text-lg">
+              Manage your scheduling, meetings, and availability
+            </p>
+          </div>
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 p-10 mb-10 hover:shadow-2xl transition-all duration-300 animate-fade-in">
+            <h2 className="text-3xl font-serif font-bold text-navy-900 mb-6 tracking-tight">
               Your Public Scheduling Page
             </h2>
-            <div className="bg-gray-50 rounded-md p-4 mb-4">
-              <p className="text-sm text-gray-600 mb-2">Share this link:</p>
-              <div className="flex items-center space-x-2">
-                <code className="flex-1 bg-white px-3 py-2 rounded border text-sm">
+            <div className="bg-gradient-to-r from-navy-50/80 to-gray-50/80 backdrop-blur-sm rounded-xl p-6 mb-6 border border-navy-100/50 shadow-sm">
+              <p className="text-sm font-semibold text-navy-800 mb-4">Share this link:</p>
+              <div className="flex items-center space-x-3">
+                <code className="flex-1 bg-white/90 backdrop-blur-sm px-5 py-3.5 rounded-xl border border-gray-200/50 text-sm font-mono text-navy-900 shadow-inner">
                   {baseUrl}/{username}
                 </code>
                 <CopyButton text={`${baseUrl}/${username}`} />
@@ -186,20 +225,21 @@ export default async function DashboardPage() {
             <Link
               href={`/${username}`}
               target="_blank"
-              className="text-navy-700 hover:text-navy-900 text-sm font-medium"
+              className="inline-flex items-center text-navy-700 hover:text-navy-900 text-sm font-semibold transition-all group hover:gap-2 gap-1.5"
             >
-              View your public page →
+              View your public page
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-10">
             <Link
               href="/dashboard/meetings"
-              className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow flex flex-col"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
             >
-              <h3 className="text-xl font-serif font-semibold text-navy-900 mb-2 flex-shrink-0">Meetings</h3>
+              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Meetings</h3>
               {upcomingMeetings && upcomingMeetings.length > 0 ? (
-                <div className="space-y-4 overflow-y-auto max-h-48 flex-1">
+                <div className="space-y-4 overflow-y-scroll max-h-48 flex-1 dashboard-scrollable">
                   {upcomingMeetings.map((meeting: any) => {
                     const allParticipants = meeting.participants || []
                     const guests = allParticipants.filter((p: any) => !p.is_host) || []
@@ -208,23 +248,23 @@ export default async function DashboardPage() {
                     const eventType = Array.isArray(meeting.event_types) ? meeting.event_types[0] : meeting.event_types
                     const meetingTitle = eventType?.name || meeting.title || 'Meeting'
                     return (
-                      <div key={meeting.id} className="text-gray-600 text-sm">
+                      <div key={meeting.id} className="text-gray-700 text-sm p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
                         <p>
-                          <span className="font-medium">{meetingTitle}</span>
+                          <span className="font-semibold text-navy-900">{meetingTitle}</span>
                         </p>
                         {allParticipants.length > 0 && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-600 mt-2">
                             {allParticipants.length === 1 ? (
                               <span>1 participant</span>
                             ) : (
                               <span>{allParticipants.length} participants</span>
                             )}
                             {guestNames && (
-                              <span> - {guestNames}</span>
+                              <span className="text-navy-700"> - {guestNames}</span>
                             )}
                           </p>
                         )}
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-600 mt-2 font-medium">
                           {formatMeetingDateTime(meeting.start_time)}
                         </p>
                       </div>
@@ -239,21 +279,23 @@ export default async function DashboardPage() {
             </Link>
             <Link
               href="/dashboard/availability"
-              className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow flex flex-col"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
             >
-              <h3 className="text-xl font-serif font-semibold text-navy-900 mb-2 flex-shrink-0">Availability</h3>
+              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Availability</h3>
               {availabilityRules && availabilityRules.length > 0 ? (
-                <div className="space-y-4 overflow-y-auto max-h-48 flex-1">
+                <div className="space-y-4 overflow-y-scroll max-h-48 flex-1 dashboard-scrollable">
                   {availabilityByDay
                     .filter((day) => day.rules.length > 0)
                     .map((day) => (
-                      <p key={day.dayIndex} className="text-gray-600 text-sm">
-                        <span className="font-medium">{day.dayName.substring(0, 3)}:</span>{' '}
-                        {day.rules
-                          .slice(0, 1)
-                          .map((rule) => `${formatTime(rule.start_time)} - ${formatTime(rule.end_time)}`)
-                          .join(', ')}
-                        {day.rules.length > 1 && ' +' + (day.rules.length - 1)}
+                      <p key={day.dayIndex} className="text-gray-700 text-sm p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
+                        <span className="font-semibold text-navy-900">{day.dayName.substring(0, 3)}:</span>{' '}
+                        <span className="text-gray-700">
+                          {day.rules
+                            .slice(0, 1)
+                            .map((rule) => `${formatTime(rule.start_time)} - ${formatTime(rule.end_time)}`)
+                            .join(', ')}
+                          {day.rules.length > 1 && <span className="text-navy-600"> +{day.rules.length - 1}</span>}
+                        </span>
                       </p>
                     ))}
                 </div>
@@ -265,11 +307,11 @@ export default async function DashboardPage() {
             </Link>
             <Link
               href="/dashboard/event-types"
-              className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow flex flex-col"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
             >
-              <h3 className="text-xl font-serif font-semibold text-navy-900 mb-2 flex-shrink-0">Event Types</h3>
+              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Event Types</h3>
               {eventTypes && eventTypes.length > 0 ? (
-                <div className="space-y-4 overflow-y-auto max-h-48 flex-1">
+                <div className="space-y-4 overflow-y-scroll max-h-48 flex-1 dashboard-scrollable">
                   {eventTypes
                     .filter((et) => et.is_active)
                     .map((eventType) => {
@@ -280,8 +322,9 @@ export default async function DashboardPage() {
                           ? `${hours}h ${minutes > 0 ? `${minutes}m` : ''}`.trim()
                           : `${minutes}m`
                       return (
-                        <p key={eventType.id} className="text-gray-600 text-sm">
-                          <span className="font-medium">{eventType.name}</span> ({duration})
+                        <p key={eventType.id} className="text-gray-700 text-sm p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
+                          <span className="font-semibold text-navy-900">{eventType.name}</span>{' '}
+                          <span className="text-gray-600">({duration})</span>
                         </p>
                       )
                     })}
@@ -299,20 +342,20 @@ export default async function DashboardPage() {
             </Link>
             <Link
               href="/dashboard/group-event-types"
-              className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 group"
             >
-              <h3 className="text-xl font-serif font-semibold text-navy-900 mb-2">Group Events</h3>
+              <h3 className="text-xl font-serif font-bold text-navy-900 mb-2 group-hover:text-navy-700 transition-colors">Group Events</h3>
               <p className="text-gray-600 text-sm">
                 Create events with multiple hosts
               </p>
             </Link>
             <Link
               href="/dashboard/calendar"
-              className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow flex flex-col"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
             >
-              <h3 className="text-xl font-serif font-semibold text-navy-900 mb-2 flex-shrink-0">Calendar</h3>
+              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Calendar</h3>
               {calendars && calendars.length > 0 ? (
-                <div className="space-y-4 overflow-y-auto max-h-48 flex-1">
+                <div className="space-y-4 overflow-y-auto max-h-48 flex-1 dashboard-scrollable">
                   {calendars.map((calendar, idx) => {
                     // Get provider display name
                     let providerName = ''
@@ -349,15 +392,15 @@ export default async function DashboardPage() {
                     // The calendar_name might be an email or other identifier
                     const displayName = providerName
                     return (
-                      <div key={idx} className="flex items-center gap-2">
+                      <div key={idx} className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
                         {providerIcon && (
                           <div className="flex-shrink-0">
                             {providerIcon}
                           </div>
                         )}
-                        <p className="text-gray-600 text-sm flex items-center gap-1">
-                          <span className="font-medium text-green-700">✓</span>{' '}
-                          <span className="font-medium">{displayName}</span>
+                        <p className="text-gray-700 text-sm flex items-center gap-2">
+                          <span className="font-semibold text-green-600">✓</span>
+                          <span className="font-semibold text-navy-900">{displayName}</span>
                         </p>
                       </div>
                     )
@@ -371,30 +414,31 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-serif font-semibold text-navy-900 mb-4">Quick Info</h2>
-              <p className="text-sm text-gray-600 mb-2">
-              Timezone: <span className="font-medium">{userProfile?.timezone || 'UTC'}</span>
-            </p>
-              <Link
-                href="/dashboard/availability"
-                className="text-sm text-navy-700 hover:text-navy-900 font-medium"
-              >
-                Manage availability →
-              </Link>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-8 hover:shadow-2xl transition-all duration-300">
+              <h2 className="text-xl font-serif font-bold text-navy-900 mb-6">Quick Info</h2>
+               <p className="text-sm text-gray-700 mb-4">
+               Timezone: <span className="font-semibold text-navy-900">{userProfile?.timezone || 'UTC'}</span>
+              </p>
+                <Link
+                  href="/dashboard/availability"
+                 className="inline-flex items-center text-sm text-navy-700 hover:text-navy-900 font-medium transition-colors group"
+                >
+                 Manage availability
+                 <span className="ml-1 group-hover:translate-x-1 transition-transform">→</span>
+                </Link>
             </div>
 
-            <div className="bg-white shadow rounded-lg p-6 flex flex-col">
-              <h2 className="text-xl font-serif font-semibold text-navy-900 mb-4 flex-shrink-0">Your Availability</h2>
+             <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-8 flex flex-col hover:shadow-2xl transition-all duration-300">
+               <h2 className="text-xl font-serif font-bold text-navy-900 mb-6 flex-shrink-0">Your Availability</h2>
               {availabilityRules && availabilityRules.length > 0 ? (
-                <div className="space-y-4 overflow-y-auto max-h-64 flex-1">
+                <div className="space-y-4 overflow-y-scroll max-h-64 flex-1 dashboard-scrollable">
                   {availabilityByDay
                     .filter((day) => day.rules.length > 0)
                     .map((day) => (
-                      <div key={day.dayIndex} className="text-sm">
-                        <span className="font-medium text-gray-900">{day.dayName}:</span>{' '}
-                        <span className="text-gray-600">
+                      <div key={day.dayIndex} className="text-sm p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
+                        <span className="font-semibold text-navy-900">{day.dayName}:</span>{' '}
+                        <span className="text-gray-700">
                           {day.rules.map((rule, idx) => (
                             <span key={rule.id || idx}>
                               {formatTime(rule.start_time)} - {formatTime(rule.end_time)}

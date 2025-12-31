@@ -18,10 +18,10 @@ export default function CopyButton({ text }: CopyButtonProps) {
   return (
     <button
       onClick={handleCopy}
-      className="px-4 py-2 bg-navy-900 text-white rounded-md hover:bg-navy-800 text-sm disabled:opacity-50 transition-colors"
+      className="px-5 py-2.5 bg-gradient-to-r from-navy-900 to-navy-800 text-white rounded-xl hover:from-navy-800 hover:to-navy-700 text-sm font-semibold disabled:opacity-50 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
       disabled={copied}
     >
-      {copied ? 'Copied!' : 'Copy'}
+      {copied ? '✓ Copied!' : 'Copy'}
     </button>
   )
 }
