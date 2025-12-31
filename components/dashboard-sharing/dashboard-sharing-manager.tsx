@@ -15,6 +15,7 @@ interface Share {
     id: string
     username: string
     email?: string
+    display_name?: string
   }
 }
 
@@ -234,7 +235,7 @@ export default function DashboardSharingManager({
               >
                 <div className="flex-1">
                   <p className="font-semibold text-navy-900">
-                    {share.shared_with_user?.username || share.shared_with_user?.email || 'Unknown User'}
+                    {share.shared_with_user?.display_name || share.shared_with_user?.username || share.shared_with_user?.email || 'Unknown User'}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
                     {share.shared_with_user?.email && share.shared_with_user?.email}

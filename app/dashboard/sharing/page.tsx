@@ -22,17 +22,21 @@ export default async function DashboardSharingPage() {
     .eq('owner_user_id', user.id)
     .order('created_at', { ascending: false })
 
-  // Fetch emails for shared users
+  // Fetch emails and display names for shared users
   const sharesWithEmails = await Promise.all(
     (shares || []).map(async (share) => {
       const { data: emailData } = await supabase.rpc('get_user_email', {
+        p_user_id: share.shared_with_user_id
+      })
+      const { data: displayName } = await supabase.rpc('get_user_display_name', {
         p_user_id: share.shared_with_user_id
       })
       return {
         ...share,
         shared_with_user: {
           ...share.shared_with_user,
-          email: emailData || null
+          email: emailData || null,
+          display_name: displayName || share.shared_with_user?.username || 'Unknown User'
         }
       }
     })
