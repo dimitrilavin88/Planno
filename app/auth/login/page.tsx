@@ -42,10 +42,16 @@ export default function LoginPage() {
 
     const supabase = createClient()
 
+    // Get the correct site URL for email redirects
+    // In production, use the environment variable; in dev, use current origin
+    const siteUrl = typeof window !== 'undefined' 
+      ? (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)
+      : 'http://localhost:3000'
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     })
 

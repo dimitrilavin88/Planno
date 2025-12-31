@@ -14,6 +14,9 @@ interface AvailabilityRule {
 
 interface Props {
   initialRules: AvailabilityRule[]
+  isSharedDashboard?: boolean
+  ownerUserId?: string
+  canEdit?: boolean
 }
 
 const DAYS = [
@@ -26,7 +29,7 @@ const DAYS = [
   { value: 6, label: 'Saturday' },
 ]
 
-export default function AvailabilityManager({ initialRules }: Props) {
+export default function AvailabilityManager({ initialRules, isSharedDashboard = false, ownerUserId, canEdit = true }: Props) {
   const router = useRouter()
   const [rules, setRules] = useState<AvailabilityRule[]>(initialRules || [])
   const [loading, setLoading] = useState(false)
@@ -35,7 +38,7 @@ export default function AvailabilityManager({ initialRules }: Props) {
 
   // Sync with prop changes (e.g., after refresh)
   useEffect(() => {
-    if (initialRules && initialRules.length >= 0) {
+    if (initialRules) {
       setRules(initialRules)
     }
   }, [initialRules])
@@ -59,13 +62,25 @@ export default function AvailabilityManager({ initialRules }: Props) {
   }
 
   const deleteRule = async (index: number, ruleId?: string) => {
+    if (!canEdit) {
+      setError('You do not have permission to edit this dashboard')
+      return
+    }
+
     if (ruleId) {
       // Delete from database
       const supabase = createClient()
-      const { error } = await supabase
+      const targetUserId = isSharedDashboard && ownerUserId ? ownerUserId : undefined
+      const query = supabase
         .from('availability_rules')
         .delete()
         .eq('id', ruleId)
+      
+      if (targetUserId) {
+        query.eq('user_id', targetUserId)
+      }
+      
+      const { error } = await query
 
       if (error) {
         setError('Failed to delete availability rule')
@@ -97,6 +112,14 @@ export default function AvailabilityManager({ initialRules }: Props) {
       return
     }
 
+    if (!canEdit) {
+      setError('You do not have permission to edit this dashboard')
+      setLoading(false)
+      return
+    }
+
+    const targetUserId = isSharedDashboard && ownerUserId ? ownerUserId : user.id
+
     try {
       // Validate rules
       for (const rule of rules) {
@@ -112,7 +135,7 @@ export default function AvailabilityManager({ initialRules }: Props) {
       const { error: deleteError } = await supabase
         .from('availability_rules')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', targetUserId)
 
       if (deleteError) {
         setError('Failed to update availability')
@@ -123,7 +146,7 @@ export default function AvailabilityManager({ initialRules }: Props) {
       // Insert new rules
       if (rules.length > 0) {
         const rulesToInsert = rules.map((rule) => ({
-          user_id: user.id,
+          user_id: targetUserId,
           day_of_week: rule.day_of_week,
           start_time: rule.start_time,
           end_time: rule.end_time,
@@ -178,6 +201,12 @@ export default function AvailabilityManager({ initialRules }: Props) {
         </div>
       )}
 
+      {!canEdit && (
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-sm text-yellow-800">You are viewing this dashboard in read-only mode. You need 'edit' permission to make changes.</p>
+        </div>
+      )}
+
       <div className="space-y-6">
         {groupedRules.map((day) => (
           <div key={day.value} className="border-b border-gray-200 pb-4 last:border-b-0">
@@ -206,57 +235,65 @@ export default function AvailabilityManager({ initialRules }: Props) {
                         type="time"
                         value={rule.start_time}
                         onChange={(e) => updateRule(globalIndex, 'start_time', e.target.value)}
-                          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
+                        disabled={!canEdit}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-navy-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                       <span className="text-gray-500">to</span>
                       <input
                         type="time"
                         value={rule.end_time}
                         onChange={(e) => updateRule(globalIndex, 'end_time', e.target.value)}
-                          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
+                        disabled={!canEdit}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-navy-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                         <span className="text-sm text-gray-600 ml-2">
                           ({formatTime(rule.start_time)} - {formatTime(rule.end_time)})
                         </span>
                       </div>
-                      <button
-                        onClick={() => deleteRule(globalIndex, rule.id)}
-                        className="px-3 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 text-sm font-medium rounded transition-colors"
-                      >
-                        Remove
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => deleteRule(globalIndex, rule.id)}
+                          className="px-3 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 text-sm font-medium rounded transition-colors"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
                   )
                 })}
               </div>
             )}
-            <button
-              onClick={() => {
-                const newRule: AvailabilityRule = {
-                  day_of_week: day.value,
-                  start_time: '09:00',
-                  end_time: '17:00',
-                  is_available: true,
-                }
-                setRules([...rules, newRule])
-              }}
-              className="mt-2 text-sm text-navy-700 hover:text-navy-900 font-medium"
-            >
-              + Add time slot
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => {
+                  const newRule: AvailabilityRule = {
+                    day_of_week: day.value,
+                    start_time: '09:00',
+                    end_time: '17:00',
+                    is_available: true,
+                  }
+                  setRules([...rules, newRule])
+                }}
+                className="mt-2 text-sm text-navy-700 hover:text-navy-900 font-medium"
+              >
+                + Add time slot
+              </button>
+            )}
           </div>
         ))}
       </div>
 
-      <div className="mt-6 flex justify-end space-x-4">
-        <button
-          onClick={saveRules}
-          disabled={loading}
-          className="px-4 py-2 bg-navy-900 text-white rounded-md hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {loading ? 'Saving...' : 'Save Availability'}
-        </button>
-      </div>
+      {canEdit && (
+        <div className="mt-6 flex justify-end space-x-4">
+          <button
+            onClick={saveRules}
+            disabled={loading}
+            className="px-4 py-2 bg-navy-900 text-white rounded-md hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? 'Saving...' : 'Save Availability'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

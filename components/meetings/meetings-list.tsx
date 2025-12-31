@@ -29,9 +29,12 @@ interface Props {
   upcomingMeetings: Meeting[]
   pastMeetings: Meeting[]
   userTimezone?: string
+  isSharedDashboard?: boolean
+  canEdit?: boolean
+  ownerId?: string
 }
 
-export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimezone = 'UTC' }: Props) {
+export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimezone = 'UTC', isSharedDashboard = false, canEdit = true, ownerId }: Props) {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
 
   const formatDateTime = (timestamp: string) => {
@@ -191,21 +194,24 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
 
                   <div className="ml-4 flex items-center space-x-2">
                     <DownloadICSButton meeting={meeting as any} />
-                    {activeTab === 'upcoming' && (
+                    {activeTab === 'upcoming' && canEdit && (
                       <>
                         <Link
-                          href={`/meeting/${meeting.id}/reschedule`}
+                          href={`/meeting/${meeting.id}/reschedule${isSharedDashboard && ownerId ? `?returnTo=/dashboard/shared/${ownerId}/meetings` : ''}`}
                           className="px-3 py-1 text-sm bg-navy-900 text-white rounded hover:bg-navy-800 transition-colors"
                         >
                           Reschedule
                         </Link>
                         <Link
-                          href={`/meeting/${meeting.id}/cancel`}
+                          href={`/meeting/${meeting.id}/cancel${isSharedDashboard && ownerId ? `?returnTo=/dashboard/shared/${ownerId}/meetings` : ''}`}
                           className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
                         >
                           Cancel
                         </Link>
                       </>
+                    )}
+                    {activeTab === 'upcoming' && isSharedDashboard && !canEdit && (
+                      <span className="text-xs text-gray-500 italic">Read-only</span>
                     )}
                   </div>
                 </div>

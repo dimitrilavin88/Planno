@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
@@ -22,15 +22,25 @@ interface EventType {
 
 interface Props {
   initialEventTypes: EventType[]
+  isSharedDashboard?: boolean
+  ownerUserId?: string
+  canEdit?: boolean
 }
 
-export default function EventTypesManager({ initialEventTypes }: Props) {
+export default function EventTypesManager({ initialEventTypes, isSharedDashboard = false, ownerUserId, canEdit = true }: Props) {
   const router = useRouter()
   const [eventTypes, setEventTypes] = useState<EventType[]>(initialEventTypes)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Sync with prop changes (e.g., after refresh)
+  useEffect(() => {
+    if (initialEventTypes) {
+      setEventTypes(initialEventTypes)
+    }
+  }, [initialEventTypes])
 
   const generateBookingLink = () => {
     return 'evt_' + uuidv4().replace(/-/g, '').substring(0, 24)
@@ -82,6 +92,14 @@ export default function EventTypesManager({ initialEventTypes }: Props) {
       return
     }
 
+    if (!canEdit) {
+      setError('You do not have permission to edit this dashboard')
+      setLoading(false)
+      return
+    }
+
+    const targetUserId = isSharedDashboard && ownerUserId ? ownerUserId : user.id
+
     try {
       if (editingId) {
         // Update existing
@@ -100,7 +118,7 @@ export default function EventTypesManager({ initialEventTypes }: Props) {
             is_active: formData.is_active,
           })
           .eq('id', editingId)
-          .eq('user_id', user.id)
+          .eq('user_id', targetUserId)
 
         if (updateError) throw updateError
       } else {
@@ -108,7 +126,7 @@ export default function EventTypesManager({ initialEventTypes }: Props) {
         const { error: insertError } = await supabase
           .from('event_types')
           .insert({
-            user_id: user.id,
+            user_id: targetUserId,
             name: formData.name,
             description: formData.description,
             duration_minutes: formData.duration_minutes,
@@ -126,6 +144,11 @@ export default function EventTypesManager({ initialEventTypes }: Props) {
       }
 
       resetForm()
+      // Update local state immediately for instant feedback
+      if (editingId) {
+        setEventTypes(eventTypes.map(et => et.id === editingId ? { ...formData, id: editingId } : et))
+      }
+      // Refresh to sync with server (for new items, this will fetch the full list)
       router.refresh()
     } catch (err: any) {
       setError(err.message || 'Failed to save event type')
@@ -135,6 +158,11 @@ export default function EventTypesManager({ initialEventTypes }: Props) {
   }
 
   const handleDelete = async (id: string) => {
+    if (!canEdit) {
+      setError('You do not have permission to edit this dashboard')
+      return
+    }
+
     if (!confirm('Are you sure you want to delete this event type?')) return
 
     const supabase = createClient()
@@ -144,21 +172,30 @@ export default function EventTypesManager({ initialEventTypes }: Props) {
 
     if (!user) return
 
+    const targetUserId = isSharedDashboard && ownerUserId ? ownerUserId : user.id
+
     const { error } = await supabase
       .from('event_types')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', targetUserId)
 
     if (error) {
       setError('Failed to delete event type')
       return
     }
 
+    // Update local state immediately
+    setEventTypes(eventTypes.filter(et => et.id !== id))
     router.refresh()
   }
 
   const toggleActive = async (id: string, currentStatus: boolean) => {
+    if (!canEdit) {
+      setError('You do not have permission to edit this dashboard')
+      return
+    }
+
     const supabase = createClient()
     const {
       data: { user },
@@ -166,17 +203,21 @@ export default function EventTypesManager({ initialEventTypes }: Props) {
 
     if (!user) return
 
+    const targetUserId = isSharedDashboard && ownerUserId ? ownerUserId : user.id
+
     const { error } = await supabase
       .from('event_types')
       .update({ is_active: !currentStatus })
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', targetUserId)
 
     if (error) {
       setError('Failed to update event type')
       return
     }
 
+    // Update local state immediately
+    setEventTypes(eventTypes.map(et => et.id === id ? { ...et, is_active: !currentStatus } : et))
     router.refresh()
   }
 
@@ -194,6 +235,24 @@ export default function EventTypesManager({ initialEventTypes }: Props) {
           <p className="text-sm text-red-800">{error}</p>
         </div>
       )}
+
+      {!canEdit && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-sm text-yellow-800">You are viewing this dashboard in read-only mode. You need 'edit' permission to make changes.</p>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold text-gray-900">Event Types</h2>
+        {canEdit && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-4 py-2 bg-navy-900 text-white rounded-md hover:bg-navy-800 transition-colors"
+          >
+            + Create Event Type
+          </button>
+        )}
+      </div>
 
       {/* Event Types List */}
       <div className="bg-white shadow rounded-lg divide-y divide-gray-200">
@@ -241,30 +300,37 @@ export default function EventTypesManager({ initialEventTypes }: Props) {
                     </code>
                   </div>
                 </div>
-                <div className="ml-4 flex space-x-2">
-                  <button
-                    onClick={() => toggleActive(eventType.id!, eventType.is_active)}
-                    className={`px-3 py-1 text-sm rounded ${
-                      eventType.is_active
-                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        : 'bg-green-600 text-white hover:bg-green-700'
-                    }`}
-                  >
-                    {eventType.is_active ? 'Deactivate' : 'Activate'}
-                  </button>
-                  <button
-                    onClick={() => handleEdit(eventType)}
-                    className="px-3 py-1 text-sm bg-navy-900 text-white rounded hover:bg-navy-800 transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(eventType.id!)}
-                    className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    Delete
-                  </button>
-                </div>
+                {canEdit && (
+                  <div className="ml-4 flex space-x-2">
+                    <button
+                      onClick={() => toggleActive(eventType.id!, eventType.is_active)}
+                      className={`px-3 py-1 text-sm rounded ${
+                        eventType.is_active
+                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                    >
+                      {eventType.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => handleEdit(eventType)}
+                      className="px-3 py-1 text-sm bg-navy-900 text-white rounded hover:bg-navy-800 transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(eventType.id!)}
+                      className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+                {!canEdit && (
+                  <div className="ml-4">
+                    <span className="text-xs text-gray-500 italic">Read-only</span>
+                  </div>
+                )}
               </div>
             </div>
           ))

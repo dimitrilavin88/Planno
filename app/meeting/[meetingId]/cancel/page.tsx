@@ -8,12 +8,13 @@ interface PageProps {
   }>
   searchParams: Promise<{
     token?: string
+    returnTo?: string
   }>
 }
 
 export default async function CancelPage({ params, searchParams }: PageProps) {
   const { meetingId } = await params
-  const { token } = await searchParams
+  const { token, returnTo } = await searchParams
 
   const supabase = await createClient()
 
@@ -47,6 +48,7 @@ export default async function CancelPage({ params, searchParams }: PageProps) {
             meetingTitle={eventType.name}
             startTime={meeting.start_time}
             token={token}
+            returnTo={returnTo}
           />
         </div>
       </div>

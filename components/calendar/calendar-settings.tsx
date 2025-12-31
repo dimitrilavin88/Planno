@@ -24,6 +24,13 @@ export default function CalendarSettings({ initialCalendars }: Props) {
   const [calendars, setCalendars] = useState<Calendar[]>(initialCalendars)
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
 
+  // Sync with prop changes (e.g., after refresh)
+  useEffect(() => {
+    if (initialCalendars) {
+      setCalendars(initialCalendars)
+    }
+  }, [initialCalendars])
+
   // Refresh calendars when component mounts (after OAuth redirect)
   useEffect(() => {
     const success = searchParams.get('success')

@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface CancelMeetingProps {
   meetingId: string
   meetingTitle: string
   startTime: string
   token?: string
+  returnTo?: string
 }
 
 export default function CancelMeeting({
@@ -16,8 +17,10 @@ export default function CancelMeeting({
   meetingTitle,
   startTime,
   token,
+  returnTo,
 }: CancelMeetingProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cancelled, setCancelled] = useState(false)
@@ -52,8 +55,13 @@ export default function CancelMeeting({
       })
 
       setCancelled(true)
+      
+      // Determine redirect path - prioritize returnTo prop, then query param, then default
+      const returnToParam = returnTo || searchParams?.get('returnTo')
+      const redirectPath = returnToParam || '/dashboard/meetings'
+      
       setTimeout(() => {
-        router.push('/dashboard/meetings')
+        router.push(redirectPath)
       }, 2000)
     } catch (err: any) {
       setError(err.message || 'Failed to cancel meeting')

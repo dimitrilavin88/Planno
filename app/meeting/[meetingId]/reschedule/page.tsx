@@ -8,12 +8,13 @@ interface PageProps {
   }>
   searchParams: Promise<{
     token?: string
+    returnTo?: string
   }>
 }
 
 export default async function ReschedulePage({ params, searchParams }: PageProps) {
   const { meetingId } = await params
-  const { token } = await searchParams
+  const { token, returnTo } = await searchParams
 
   const supabase = await createClient()
 
@@ -62,6 +63,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
             durationMinutes={eventType.duration_minutes}
             minimumNoticeHours={eventType.minimum_notice_hours}
             token={token}
+            returnTo={returnTo}
           />
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface RescheduleMeetingProps {
   meetingId: string
@@ -14,6 +14,7 @@ interface RescheduleMeetingProps {
   durationMinutes: number
   minimumNoticeHours: number
   token?: string
+  returnTo?: string
 }
 
 export default function RescheduleMeeting({
@@ -26,8 +27,10 @@ export default function RescheduleMeeting({
   durationMinutes,
   minimumNoticeHours,
   token,
+  returnTo,
 }: RescheduleMeetingProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [timeSlots, setTimeSlots] = useState<any[]>([])
   const [selectedSlot, setSelectedSlot] = useState<any | null>(null)
@@ -129,8 +132,13 @@ export default function RescheduleMeeting({
       }
 
       setSuccess(true)
+      
+      // Determine redirect path - prioritize returnTo prop, then query param, then default
+      const returnToParam = returnTo || searchParams?.get('returnTo')
+      const redirectPath = returnToParam || '/dashboard/meetings'
+      
       setTimeout(() => {
-        router.push('/dashboard/meetings')
+        router.push(redirectPath)
       }, 2000)
     } catch (err: any) {
       setError(err.message || 'Failed to reschedule meeting')

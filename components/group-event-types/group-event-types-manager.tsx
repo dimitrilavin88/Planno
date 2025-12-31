@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
@@ -38,6 +38,13 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId }:
   const [error, setError] = useState<string | null>(null)
   const [hostUsernames, setHostUsernames] = useState<string[]>(['']) // Start with current user
   const [selectedHostIds, setSelectedHostIds] = useState<string[]>([currentUserId])
+
+  // Sync with prop changes (e.g., after refresh)
+  useEffect(() => {
+    if (initialGroups) {
+      setGroups(initialGroups)
+    }
+  }, [initialGroups])
 
   const generateBookingLink = () => {
     return 'grp_' + uuidv4().replace(/-/g, '').substring(0, 24)
