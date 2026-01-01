@@ -1,6 +1,6 @@
 # Planno - Scheduling Web Application
 
-A comprehensive, production-ready scheduling web application built with Next.js 14, TypeScript, Tailwind CSS, and Supabase. Planno enables users to manage their availability, create event types, and allow others to book meetings through public booking links.
+A comprehensive, production-ready scheduling web application built with Next.js 14, TypeScript, Tailwind CSS, and Supabase. Planno enables users to manage their availability, create event types, allow others to book meetings through public booking links, and share dashboards with team members.
 
 ## Table of Contents
 
@@ -10,15 +10,15 @@ A comprehensive, production-ready scheduling web application built with Next.js 
 - [Getting Started](#getting-started)
 - [Database Setup](#database-setup)
 - [Environment Variables](#environment-variables)
+- [Third-Party Integrations](#third-party-integrations)
 - [Deployment](#deployment)
+- [How to Navigate the Application](#how-to-navigate-the-application)
 - [Security](#security)
-- [What's Completed](#whats-completed)
-- [What Needs to Be Completed](#what-needs-to-be-completed)
 - [Troubleshooting](#troubleshooting)
 
 ## Features
 
-### ✅ Completed Features
+### ✅ Core Features
 
 #### Authentication & User Management
 - Email/password signup and login
@@ -28,12 +28,14 @@ A comprehensive, production-ready scheduling web application built with Next.js 
 - User profile setup with unique usernames
 - Timezone management
 - Public scheduling pages at `/[username]`
+- Display names from auth metadata
 
 #### Availability Management
 - Weekly availability management (CRUD operations)
 - Multiple time windows per day
 - Timezone-aware availability calculations
 - Visual availability editor
+- Shared dashboard support (view/edit permissions)
 
 #### Event Types
 - Create and manage event types
@@ -62,6 +64,8 @@ A comprehensive, production-ready scheduling web application built with Next.js 
 - Secure reschedule/cancel links
 - Meetings list view (upcoming & past)
 - Meeting status tracking
+- Calendar integration (Google Calendar sync)
+- iCalendar (.ics) downloads for Apple Calendar
 
 #### Group Scheduling
 - Group event types creation and management
@@ -71,20 +75,33 @@ A comprehensive, production-ready scheduling web application built with Next.js 
 - Group booking UI at `/book-group/[bookingLink]`
 - Group event types dashboard
 
+#### Calendar Integration
+- **Google Calendar**: OAuth connection, automatic event creation/update/deletion
+- **Apple Calendar**: iCalendar (.ics) file downloads
+- Automatic sync when meetings are booked, rescheduled, or cancelled
+- Calendar connection management in dashboard
+
+#### Email Notifications
+- **Booking Confirmation Emails**: Sent to host and guests when meetings are created
+- **Reminder Emails**: Configurable reminder emails (default: 24 hours before)
+- Beautiful HTML email templates via Mailgun
+
+#### Dashboard Sharing
+- Share dashboards with other users
+- View-only and edit permissions
+- Shared dashboard pages for viewing/managing shared content
+- Display owner's meetings, availability, and event types
+
 #### Dashboard
 - Main dashboard with navigation
 - Availability management page
 - Event types management page
 - Group event types management page
 - Meetings list page
+- Calendar integration settings
+- Dashboard sharing management
 - Public scheduling link display
-
-### ⚠️ Partially Implemented
-
-#### Edge Functions & Integrations
-- Edge Functions structure created
-- Calendar integrations (Google/Outlook) - Structure ready, needs API integration
-- Email service integration - Structure ready, needs service integration
+- Connected calendar display with provider logos
 
 ## Tech Stack
 
@@ -95,7 +112,9 @@ A comprehensive, production-ready scheduling web application built with Next.js 
   - PostgreSQL database
   - Supabase Auth
   - Row Level Security (RLS)
-  - Edge Functions
+  - Edge Functions (Deno)
+- **Email**: Mailgun
+- **Calendar**: Google Calendar API
 - **Hosting**: Vercel (frontend), Supabase (backend)
 
 ## Project Structure
@@ -107,70 +126,63 @@ Planno/
 │   ├── auth/                    # Authentication pages
 │   │   ├── login/               # Login page
 │   │   ├── signup/              # Signup page
-│   │   ├── callback/            # OAuth callback handler
-│   │   └── logout/              # Logout route
+│   │   └── callback/            # OAuth callback handler
 │   ├── book/                    # Single host booking
 │   │   └── [bookingLink]/      # Public booking page
 │   ├── book-group/              # Group booking
 │   │   └── [bookingLink]/      # Group booking page
 │   ├── booking/                 # Booking confirmation
-│   │   └── confirmed/           # Confirmation page
+│   │   └── confirmed/           # Confirmation page with calendar buttons
 │   ├── dashboard/               # Protected dashboard pages
 │   │   ├── availability/        # Availability management
 │   │   ├── event-types/         # Event types management
 │   │   ├── group-event-types/   # Group event types
-│   │   └── meetings/            # Meetings list
+│   │   ├── meetings/            # Meetings list
+│   │   ├── calendar/            # Calendar integration settings
+│   │   ├── sharing/             # Dashboard sharing management
+│   │   └── shared/              # Shared dashboard views
+│   │       └── [ownerId]/
+│   │           ├── page.tsx     # Shared dashboard overview
+│   │           ├── meetings/    # Shared meetings
+│   │           ├── availability/ # Shared availability
+│   │           └── event-types/  # Shared event types
 │   ├── meeting/                 # Meeting management
 │   │   └── [meetingId]/
 │   │       ├── reschedule/      # Reschedule page
 │   │       └── cancel/          # Cancel page
 │   ├── profile/                 # Profile management
 │   │   └── setup/               # Profile setup
+│   ├── api/                     # API routes
+│   │   └── calendar/            # Calendar integration endpoints
 │   ├── layout.tsx               # Root layout
-│   ├── page.tsx                 # Home page
+│   ├── page.tsx                 # Landing page
 │   └── globals.css              # Global styles
 ├── components/                   # React components
 │   ├── auth/                    # Auth components
-│   │   └── logout-button.tsx
 │   ├── availability/            # Availability management
-│   │   └── availability-manager.tsx
 │   ├── booking/                 # Booking flow
-│   │   ├── booking-flow.tsx
-│   │   └── group-booking-flow.tsx
+│   ├── calendar/                # Calendar components
+│   ├── dashboard-sharing/       # Dashboard sharing
 │   ├── event-types/             # Event type management
-│   │   └── event-types-manager.tsx
 │   ├── group-event-types/       # Group event types
-│   │   └── group-event-types-manager.tsx
 │   ├── meeting/                 # Meeting management
-│   │   ├── cancel-meeting.tsx
-│   │   └── reschedule-meeting.tsx
 │   ├── meetings/                # Meeting list
-│   │   └── meetings-list.tsx
-│   └── copy-button.tsx          # Utility component
+│   └── logo.tsx                 # Logo component
 ├── lib/                         # Utilities
 │   ├── supabase/                # Supabase clients
-│   │   ├── client.ts            # Browser client
-│   │   └── server.ts            # Server client
-│   └── auth/                    # Auth utilities
-│       └── utils.ts             # requireAuth, getAuthUser
+│   ├── auth/                    # Auth utilities
+│   └── dashboard-access/        # Dashboard sharing utilities
 ├── supabase/                    # Database files
-│   ├── schema.sql               # Complete database schema
-│   ├── rls.sql                  # Row Level Security policies
-│   └── functions/               # RPC functions & Edge Functions
-│       ├── create_user_profile.sql
-│       ├── update_username.sql
-│       ├── calculate_availability.sql
-│       ├── calculate_group_availability.sql
-│       ├── book_meeting.sql
-│       ├── book_group_meeting.sql
-│       ├── lock_time_slot.sql
-│       ├── reschedule_meeting.sql
-│       ├── cancel_meeting.sql
-│       ├── trigger-meeting-webhooks.sql
-│       ├── create-calendar-event/  # Edge Function (needs implementation)
-│       │   └── index.ts
-│       └── send-booking-email/     # Edge Function (needs implementation)
-│           └── index.ts
+│   ├── functions/               # SQL functions & Edge Functions
+│   │   ├── *.sql                # PostgreSQL functions
+│   │   ├── create-calendar-event/  # Google Calendar sync
+│   │   ├── send-booking-email/     # Booking confirmation emails
+│   │   └── send-reminder-email/    # Reminder emails
+│   ├── schema.sql               # Database schema
+│   └── rls.sql                  # Row Level Security policies
+├── DASHBOARD_SHARING_SETUP.sql  # Dashboard sharing database setup
+├── DASHBOARD_SHARING_RLS_POLICIES.sql  # Dashboard sharing RLS policies
+├── DATABASE_SETUP_UPDATED_FIXED.sql  # Complete database setup (recommended)
 ├── middleware.ts                # Auth middleware
 ├── package.json
 ├── tsconfig.json
@@ -186,6 +198,8 @@ Planno/
 - npm or yarn
 - A Supabase account and project
 - (Optional) Vercel account for deployment
+- (Optional) Mailgun account for email notifications
+- (Optional) Google Cloud Project for calendar integration
 
 ### Installation
 
@@ -210,28 +224,27 @@ npm run dev
 
 ## Database Setup
 
-### Step 1: Create Supabase Project
+### Quick Setup (Recommended)
 
-1. Go to [https://supabase.com](https://supabase.com)
-2. Create a new project
-3. Note your project URL and anon key from **Settings > API**
+For a complete, all-in-one database setup, run:
 
-### Step 2: Run SQL Files
+1. **`DATABASE_SETUP_UPDATED_FIXED.sql`** in your Supabase SQL Editor
+   - This file includes all tables, indexes, triggers, RLS policies, and functions
+   - Run this once to set up the entire database
 
-Run these SQL files in your Supabase SQL Editor **in this exact order**:
+2. **`DASHBOARD_SHARING_SETUP.sql`** (if you want dashboard sharing)
+   - Creates the `dashboard_shares` table and helper functions
 
-1. **`supabase/schema.sql`** - Creates all tables, indexes, and triggers
-2. **`supabase/rls.sql`** - Sets up Row Level Security policies
-3. **`supabase/functions/create_user_profile.sql`** - Auto-creates user profiles on signup
-4. **`supabase/functions/update_username.sql`** - Username update function with uniqueness check
-5. **`supabase/functions/calculate_availability.sql`** - Availability calculation function
-6. **`supabase/functions/calculate_group_availability.sql`** - Group availability calculation
-7. **`supabase/functions/lock_time_slot.sql`** - Time slot locking mechanism
-8. **`supabase/functions/book_meeting.sql`** - Atomic booking function
-9. **`supabase/functions/book_group_meeting.sql`** - Group booking function
-10. **`supabase/functions/reschedule_meeting.sql`** - Reschedule function
-11. **`supabase/functions/cancel_meeting.sql`** - Cancel function
-12. **`supabase/functions/trigger-meeting-webhooks.sql`** - Webhook triggers (for Edge Functions)
+3. **`DASHBOARD_SHARING_RLS_POLICIES.sql`** (if you want dashboard sharing)
+   - Updates RLS policies to support dashboard sharing
+
+### Manual Setup (Step-by-Step)
+
+If you prefer to set up manually or troubleshoot, run these SQL files in order:
+
+1. **Schema & Tables**: Run `supabase/schema.sql` (or use the consolidated file above)
+2. **RLS Policies**: Run `supabase/rls.sql` 
+3. **Functions**: Run all SQL files in `supabase/functions/` directory
 
 ### Database Schema Overview
 
@@ -249,40 +262,165 @@ Run these SQL files in your Supabase SQL Editor **in this exact order**:
 - **`group_event_types`** - Group event definitions
 - **`group_event_type_hosts`** - Host relationships for group events
 
+#### Dashboard Sharing Tables
+- **`dashboard_shares`** - Dashboard sharing relationships with permission levels
+
 ## Environment Variables
+
+### Required Variables
 
 Create a `.env.local` file in the root directory:
 
 ```env
-# Supabase Configuration
+# Supabase Configuration (Required)
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # Site URL (for redirects and links)
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-For production, set these same variables in your hosting platform (Vercel, etc.) with your production domain.
-
-### Edge Functions Environment Variables
-
-Set these in **Supabase Dashboard > Project Settings > Edge Functions**:
+### Optional Variables
 
 ```env
-# Mailgun Configuration (Required for emails)
-MAILGUN_API_KEY=your_mailgun_api_key
-MAILGUN_DOMAIN=your_mailgun_domain.com
-MAILGUN_FROM_EMAIL=noreply@your_mailgun_domain.com
+# Google Calendar Integration (Optional)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 
-# Reminder Configuration (Optional)
-REMINDER_HOURS_BEFORE=24
+# Vercel automatically provides this
+VERCEL_URL=your-vercel-url (auto-provided)
 ```
 
-**Mailgun Setup:**
-1. Sign up for Mailgun at https://www.mailgun.com
-2. Verify your domain in Mailgun dashboard
-3. Get your API key from Mailgun dashboard (Settings > API Keys)
-4. Set the environment variables above in Supabase
+### Production Environment Variables
+
+In Vercel, set the same variables but with production values:
+- `NEXT_PUBLIC_SITE_URL` should be your production domain (e.g., `https://your-app.vercel.app`)
+
+## Third-Party Integrations
+
+### Mailgun (Email Notifications)
+
+Planno uses Mailgun to send booking confirmation and reminder emails.
+
+#### Setup Steps
+
+1. **Create Mailgun Account**
+   - Sign up at https://www.mailgun.com
+   - Verify your email address
+
+2. **Verify Your Domain**
+   - Go to Mailgun Dashboard → Sending → Domains
+   - Add your domain and follow DNS setup instructions
+   - Wait for DNS propagation (usually takes a few minutes to hours)
+
+3. **Get API Key**
+   - Go to Mailgun Dashboard → Settings → API Keys
+   - Copy your Private API key (starts with `key-`)
+
+4. **Set Edge Function Environment Variables**
+   - Go to Supabase Dashboard → Project Settings → Edge Functions
+   - Add these environment variables:
+     - `MAILGUN_API_KEY`: Your Private API key
+     - `MAILGUN_DOMAIN`: Your verified domain (e.g., `mg.yourdomain.com`)
+     - `MAILGUN_FROM_EMAIL`: Sender email (e.g., `noreply@yourdomain.com`)
+     - `REMINDER_HOURS_BEFORE`: Hours before meeting to send reminder (default: 24)
+
+5. **Deploy Edge Functions**
+```bash
+supabase functions deploy send-booking-email
+supabase functions deploy send-reminder-email
+```
+
+6. **Set Up Database Webhooks**
+   - Go to Supabase Dashboard → Database → Webhooks
+   - Create webhook for `meetings` table on INSERT
+   - URL: `https://your-project.supabase.co/functions/v1/send-booking-email`
+   - Method: POST
+   - Headers: `Authorization: Bearer YOUR_SERVICE_ROLE_KEY`
+   - Body: `{"meeting_id": "{{ $1.id }}"}`
+
+7. **Set Up Reminder Email Scheduling**
+   - Use Supabase Cron Jobs or external scheduler
+   - Call `https://your-project.supabase.co/functions/v1/send-reminder-email` periodically
+
+### Google Calendar Integration
+
+Planno integrates with Google Calendar to automatically sync meetings.
+
+#### Setup Steps
+
+1. **Create Google Cloud Project**
+   - Go to https://console.cloud.google.com/
+   - Create a new project or select existing
+
+2. **Enable Google Calendar API**
+   - Navigate to APIs & Services → Library
+   - Search for "Google Calendar API"
+   - Click Enable
+
+3. **Create OAuth 2.0 Credentials**
+   - Go to APIs & Services → Credentials
+   - Click Create Credentials → OAuth client ID
+   - Configure OAuth consent screen:
+     - Choose "External" (unless you have Google Workspace)
+     - Fill in required fields
+     - Add scopes: `https://www.googleapis.com/auth/calendar.events`
+   - Create OAuth 2.0 Client ID:
+     - Application type: Web application
+     - Authorized redirect URIs:
+       - Development: `http://localhost:3000/api/calendar/google/callback`
+       - Production: `https://your-domain.vercel.app/api/calendar/google/callback`
+
+4. **Add Test Users** (for development)
+   - In OAuth consent screen, add test users
+   - Only test users can use the app until it's verified
+
+5. **Set Environment Variables**
+   - Add to Vercel and `.env.local`:
+     ```env
+     GOOGLE_CLIENT_ID=your_google_client_id
+     GOOGLE_CLIENT_SECRET=your_google_client_secret
+     ```
+
+6. **Deploy Edge Function**
+```bash
+supabase functions deploy create-calendar-event
+```
+
+#### How It Works
+
+- **For Hosts**: Connect Google Calendar in Dashboard → Calendar
+- **Automatic Sync**: Meetings are automatically created/updated/deleted in Google Calendar
+- **For Guests**: Can add meetings to their calendar via "Add to Calendar" button (Google Calendar link or .ics download)
+
+### Supabase Auth Configuration
+
+#### Configure Site URL and Redirect URLs
+
+1. **Go to Supabase Dashboard**
+   - Navigate to Authentication → URL Configuration
+
+2. **Set Site URL**
+   - Change from `http://localhost:3000` to your production URL:
+     ```
+     https://your-app.vercel.app
+     ```
+   - **Important**: This is what Supabase uses to construct email links
+
+3. **Add Redirect URLs**
+   - Add production callback URL:
+     ```
+     https://your-app.vercel.app/auth/callback
+     https://your-app.vercel.app/api/calendar/google/callback
+     ```
+   - Keep localhost for development:
+     ```
+     http://localhost:3000/auth/callback
+     http://localhost:3000/api/calendar/google/callback
+     ```
+
+4. **Save Changes**
 
 ## Deployment
 
@@ -296,36 +434,13 @@ REMINDER_HOURS_BEFORE=24
    - Import your GitHub repository
 
 3. **Add environment variables:**
-   - In Vercel dashboard, go to **Settings > Environment Variables**
-   - Add all variables from `.env.local`
+   - In Vercel dashboard, go to Settings → Environment Variables
+   - Add all required variables (see [Environment Variables](#environment-variables))
    - Update `NEXT_PUBLIC_SITE_URL` to your production domain
 
 4. **Deploy:**
    - Click "Deploy"
    - Vercel will automatically build and deploy your app
-
-### Set Up Database Webhooks (For Edge Functions)
-
-Once Edge Functions are implemented, set up webhooks:
-
-1. Go to **Supabase Dashboard > Database > Webhooks**
-
-2. **Create webhook for calendar events:**
-   - URL: `https://your-project.supabase.co/functions/v1/create-calendar-event`
-   - HTTP Method: POST
-   - Headers: `Authorization: Bearer YOUR_SERVICE_ROLE_KEY`
-   - Body: `{"meeting_id": "{{ $1.id }}"}`
-
-3. **Create webhook for emails:**
-   - URL: `https://your-project.supabase.co/functions/v1/send-booking-email`
-   - HTTP Method: POST
-   - Headers: `Authorization: Bearer YOUR_SERVICE_ROLE_KEY`
-   - Body: `{"meeting_id": "{{ $1.id }}"}`
-
-4. **Set up reminder email scheduling (optional):**
-   - Use Supabase Cron Jobs or external scheduler (e.g., GitHub Actions, Vercel Cron)
-   - Call `https://your-project.supabase.co/functions/v1/send-reminder-email` periodically (e.g., every hour)
-   - Or use Supabase Database Webhooks with a scheduled trigger
 
 ### Deploy Edge Functions
 
@@ -347,13 +462,151 @@ supabase functions deploy send-reminder-email
 
 ### Production Checklist
 
-- [ ] Environment variables set in production
+- [ ] Environment variables set in Vercel
+- [ ] Supabase Site URL set to production domain
+- [ ] Redirect URLs configured in Supabase
+- [ ] Edge Functions deployed
+- [ ] Database webhooks configured
 - [ ] HTTPS enabled
 - [ ] Domain configured
 - [ ] Database backups enabled
-- [ ] Error monitoring set up (Sentry, etc.)
-- [ ] Analytics configured (optional)
-- [ ] Rate limiting configured (optional)
+
+## How to Navigate the Application
+
+### For End Users
+
+#### Getting Started
+
+1. **Sign Up**
+   - Go to the landing page
+   - Click "Sign Up"
+   - Enter your email, password, first name, and last name
+   - Check your email for confirmation link
+
+2. **Profile Setup**
+   - After confirming your email, you'll be redirected to profile setup
+   - Choose a unique username (this becomes your public scheduling link)
+   - Select your timezone
+   - Complete setup
+
+3. **Main Dashboard**
+   - After setup, you'll see your main dashboard
+   - **Navigation Links** (in header):
+     - **Meetings**: View all your meetings
+     - **Availability**: Set your weekly availability schedule
+     - **Event Types**: Create meeting types (e.g., "30-minute consultation")
+     - **Group Events**: Create events with multiple hosts
+     - **Calendar**: Connect Google Calendar for automatic sync
+     - **Sharing**: Share your dashboard with other users
+
+#### Creating Event Types
+
+1. Go to **Dashboard → Event Types**
+2. Click "Create Event Type"
+3. Fill in:
+   - Name (e.g., "Coffee Chat")
+   - Description
+   - Duration (e.g., 30 minutes)
+   - Location type (in-person, phone, video, custom)
+   - Buffers (time before/after meeting)
+   - Minimum notice (hours before booking)
+   - Daily booking limit (optional)
+4. Click "Create"
+5. Your booking link will be generated automatically
+
+#### Setting Availability
+
+1. Go to **Dashboard → Availability**
+2. For each day, click "Add time slot"
+3. Set your available hours (e.g., 9:00 AM - 5:00 PM)
+4. You can add multiple time slots per day
+5. Click "Save Availability"
+
+#### Booking a Meeting (as a Guest)
+
+1. Visit the host's public scheduling page: `https://your-site.com/[username]`
+2. Select an event type
+3. Choose a date and time slot
+4. Fill in your name and email
+5. Add notes (optional)
+6. Click "Book Meeting"
+7. You'll see a confirmation page with calendar options
+
+#### Managing Meetings
+
+- **View Meetings**: Dashboard → Meetings
+- **Reschedule**: Click "Reschedule" on a meeting, select new time
+- **Cancel**: Click "Cancel" on a meeting
+- **Add to Calendar**: Download .ics file or add to Google Calendar
+
+#### Connecting Google Calendar
+
+1. Go to **Dashboard → Calendar**
+2. Click "Connect Google Calendar"
+3. Authorize access in Google's OAuth flow
+4. Your calendar is now connected
+5. Future meetings will automatically sync
+
+#### Sharing Your Dashboard
+
+1. Go to **Dashboard → Sharing**
+2. Enter the email of the user you want to share with
+3. Choose permission level:
+   - **View Only**: Can see your dashboard but can't make changes
+   - **Edit**: Can view and modify your dashboard settings
+4. Click "Grant Access"
+5. The shared user will see your dashboard in "Dashboards Shared With Me"
+
+#### Using Shared Dashboards
+
+1. Go to **Dashboard → Sharing**
+2. Under "Dashboards Shared With Me", click "View Dashboard" or "Edit Dashboard"
+3. You'll see the owner's dashboard with their meetings, availability, and event types
+4. Based on your permission level, you can view or edit
+
+### For Developers
+
+#### Key Routes
+
+- `/` - Landing page
+- `/auth/login` - Login page
+- `/auth/signup` - Signup page
+- `/dashboard` - Main dashboard (protected)
+- `/dashboard/meetings` - Meetings list
+- `/dashboard/availability` - Availability management
+- `/dashboard/event-types` - Event types management
+- `/dashboard/group-event-types` - Group event types
+- `/dashboard/calendar` - Calendar integration
+- `/dashboard/sharing` - Dashboard sharing management
+- `/dashboard/shared/[ownerId]` - View shared dashboard
+- `/[username]` - Public scheduling page
+- `/book/[bookingLink]` - Public booking page
+- `/book-group/[bookingLink]` - Group booking page
+- `/booking/confirmed/[meetingId]` - Booking confirmation
+- `/meeting/[meetingId]/reschedule` - Reschedule meeting
+- `/meeting/[meetingId]/cancel` - Cancel meeting
+
+#### Key Components
+
+- `components/availability/availability-manager.tsx` - Availability CRUD
+- `components/event-types/event-types-manager.tsx` - Event types CRUD
+- `components/booking/booking-flow.tsx` - Single host booking flow
+- `components/booking/group-booking-flow.tsx` - Group booking flow
+- `components/meetings/meetings-list.tsx` - Meetings display
+- `components/calendar/calendar-settings.tsx` - Calendar connection UI
+- `components/dashboard-sharing/dashboard-sharing-manager.tsx` - Sharing management
+
+#### Key Database Functions
+
+- `calculate_availability()` - Calculates available time slots
+- `book_meeting()` - Atomic meeting booking
+- `book_group_meeting()` - Group meeting booking
+- `reschedule_meeting()` - Reschedule with validation
+- `cancel_meeting()` - Cancel meeting
+- `get_user_display_name()` - Gets user display name from auth metadata
+- `grant_dashboard_access()` - Grants dashboard sharing access
+- `revoke_dashboard_access()` - Revokes dashboard sharing access
+- `check_dashboard_access()` - Checks if user has access to dashboard
 
 ## Security
 
@@ -362,6 +615,7 @@ supabase functions deploy send-reminder-email
 #### Row Level Security (RLS)
 - RLS enabled on all tables
 - Users can only access their own data
+- Dashboard sharing policies allow shared users to access owner's data based on permissions
 - Public can read booking links and active event types
 - No direct INSERT policies on meetings (must use RPC functions)
 
@@ -383,213 +637,36 @@ supabase functions deploy send-reminder-email
 - Time range validation
 - Status enum constraints
 
-#### SQL Injection Prevention
-- Parameterized queries (Supabase handles this)
-- RPC functions use parameters, not string concatenation
-- No raw SQL with user input
-
-#### XSS Prevention
-- React automatically escapes content
-- User-generated content is sanitized through React
-
-### ⚠️ Security Recommendations
-
-1. **Edge Functions:**
-   - Add rate limiting
-   - Validate webhook requests
-   - Secure API keys in environment variables
-
-2. **Email & Calendar Integrations:**
-   - Encrypt OAuth tokens in database
-   - Use secure storage for access tokens
-   - Implement token refresh logic
-
-3. **Secure Links:**
-   - Make reschedule/cancel tokens cryptographically secure
-   - Add token expiration
-   - Consider implementing token verification in RPC functions
-
-4. **Rate Limiting:**
-   - Add rate limiting to booking endpoints
-   - Prevent abuse of availability calculation
-   - Consider using Supabase rate limiting features
-
-5. **Additional Measures:**
-   - Add Content Security Policy (CSP) headers
-   - Enforce HTTPS in production
-   - Set secure cookie flags
-   - Set up audit logging
-   - Monitor for suspicious activity
-
-## What's Completed
-
-### Core Infrastructure ✅
-- Next.js 14 App Router with TypeScript
-- Tailwind CSS styling
-- Supabase client setup (browser & server)
-- Authentication middleware
-- Row Level Security (RLS) on all tables
-- Complete database schema with 11 tables
-
-### Authentication & Users ✅
-- Email/password signup and login
-- Magic link authentication
-- Session management
-- Protected routes
-- User profile setup with unique usernames
-- Timezone management
-- Public scheduling pages at `/[username]`
-
-### Availability & Event Types ✅
-- Weekly availability management (CRUD)
-- Multiple time windows per day
-- Event types creation and management
-- Custom durations, locations, buffers
-- Minimum notice requirements
-- Daily booking limits
-- Unique booking links per event type
-
-### Booking System ✅
-- Availability calculation RPC function
-- Atomic booking RPC function with time slot locking
-- Public booking pages
-- Date and time slot selection
-- Timezone detection and conversion
-- Participant information form
-- Booking confirmation page
-
-### Meeting Management ✅
-- Meeting rescheduling with availability validation
-- Meeting cancellation
-- Secure reschedule/cancel links
-- Meetings list view (upcoming & past)
-
-### Group Scheduling ✅
-- Group event types creation and management
-- Multiple hosts per group event
-- Overlapping availability calculation
-- Group meeting booking
-- Group booking UI
-- Group event types dashboard
-
-### Dashboard ✅
-- Main dashboard with navigation
-- Availability management page
-- Event types management page
-- Group event types management page
-- Meetings list page
-- Public scheduling link display
-
-## What Needs to Be Completed
-
-### 1. Edge Functions Implementation ⚠️
-
-The Edge Functions structure is in place, but the actual integrations need to be implemented:
-
-#### `create-calendar-event` Function
-**Location:** `supabase/functions/create-calendar-event/index.ts`
-
-**What needs to be done:**
-- Integrate Google Calendar API
-  - OAuth flow for Google Calendar
-  - Create calendar events via Google Calendar API
-  - Handle event updates and deletions
-- Integrate Outlook Calendar API
-  - OAuth flow for Outlook Calendar
-  - Create calendar events via Microsoft Graph API
-  - Handle event updates and deletions
-- Store calendar event IDs in the `meetings` table
-- Handle errors and retries
-
-**Required Environment Variables:**
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `OUTLOOK_CLIENT_ID`
-- `OUTLOOK_CLIENT_SECRET`
-
-#### `send-booking-email` Function
-**Location:** `supabase/functions/send-booking-email/index.ts`
-
-**Status:** ✅ **IMPLEMENTED with Mailgun**
-
-**Features:**
-- ✅ Sends confirmation emails to host and all guests when a meeting is created
-- ✅ Beautiful HTML email templates
-- ✅ Includes meeting details (date, time, duration, location)
-- ✅ Handles multiple participants
-- ✅ Error handling and reporting
-
-**Required Environment Variables:**
-- `MAILGUN_API_KEY` - Your Mailgun API key
-- `MAILGUN_DOMAIN` - Your verified Mailgun domain
-- `MAILGUN_FROM_EMAIL` - Sender email address (defaults to `noreply@your_domain.com`)
-
-**Setup Instructions:**
-1. Sign up for Mailgun at https://www.mailgun.com
-2. Verify your domain in Mailgun dashboard
-3. Get your API key from Mailgun dashboard
-4. Set environment variables in Supabase Dashboard > Project Settings > Edge Functions
-
-#### `send-reminder-email` Function
-**Location:** `supabase/functions/send-reminder-email/index.ts`
-
-**Status:** ✅ **IMPLEMENTED with Mailgun**
-
-**Features:**
-- ✅ Sends reminder emails to all meeting participants
-- ✅ Configurable reminder time (default: 24 hours before)
-- ✅ Can be called for specific meetings or run as scheduled job
-- ✅ Beautiful HTML email templates
-
-**Required Environment Variables:**
-- `MAILGUN_API_KEY` - Your Mailgun API key
-- `MAILGUN_DOMAIN` - Your verified Mailgun domain
-- `MAILGUN_FROM_EMAIL` - Sender email address
-- `REMINDER_HOURS_BEFORE` - Hours before meeting to send reminder (default: 24)
-
-**Setup Instructions:**
-1. Deploy the function: `supabase functions deploy send-reminder-email`
-2. Set up a scheduled job (cron) to call this function periodically
-3. Or call it manually for specific meetings via API
-
-### 2. Calendar Sync (Optional Enhancement)
-
-Currently, the system can create calendar events, but doesn't sync busy times from external calendars. To implement:
-
-- Add OAuth flow for connecting calendars
-- Store OAuth tokens securely in `calendars` table
-- Implement calendar sync to fetch busy times
-- Update availability calculation to exclude busy times from external calendars
-- Handle token refresh
-
-### 3. Additional Enhancements (Optional)
-
-- **Reminder Emails:** Send reminder emails before meetings
-- **Analytics:** Track booking metrics, popular time slots, etc.
-- **Mobile App:** React Native or mobile web optimization
-- **Recurring Meetings:** Support for recurring event types
-- **Waitlist:** Allow users to join a waitlist for fully booked slots
-- **Custom Branding:** Allow users to customize booking page appearance
-- **Payment Integration:** Accept payments for paid event types
-- **Video Conferencing:** Auto-generate Zoom/Google Meet links
-
 ## Troubleshooting
 
-### RLS Errors
+### Common Issues
 
-**Problem:** Getting permission denied errors when accessing data.
+#### Authentication Email Links Go to Localhost
 
-**Solutions:**
-- Verify all RLS policies are applied (run `supabase/rls.sql`)
+**Problem**: Supabase confirmation emails have localhost links instead of production URL.
+
+**Solution**:
+1. Go to Supabase Dashboard → Authentication → URL Configuration
+2. Set **Site URL** to your production domain (e.g., `https://your-app.vercel.app`)
+3. Add production redirect URLs
+4. Set `NEXT_PUBLIC_SITE_URL` environment variable in Vercel
+5. Redeploy application
+
+#### RLS Permission Errors
+
+**Problem**: Getting permission denied errors when accessing data.
+
+**Solutions**:
+- Verify all RLS policies are applied (check `DASHBOARD_SHARING_RLS_POLICIES.sql` if using sharing)
 - Check user authentication status
 - Verify user ID matches in queries
 - Check that RPC functions are being used for inserts (not direct table inserts)
 
-### Booking Fails
+#### Booking Fails
 
-**Problem:** Bookings are failing or showing conflicts.
+**Problem**: Bookings are failing or showing conflicts.
 
-**Solutions:**
+**Solutions**:
 - Check availability calculation function
 - Verify event type is active
 - Check for conflicts with existing meetings
@@ -597,61 +674,48 @@ Currently, the system can create calendar events, but doesn't sync busy times fr
 - Check daily booking limits
 - Ensure minimum notice requirements are met
 
-### Edge Functions Not Working
+#### Calendar Sync Not Working
 
-**Problem:** Edge Functions not executing or returning errors.
+**Problem**: Meetings not appearing in Google Calendar.
 
-**Solutions:**
-- Verify webhooks are set up correctly in Supabase dashboard
-- Check function logs in Supabase dashboard
-- Verify environment variables are set
-- Check function deployment status
-- Verify service role key is correct in webhook headers
+**Solutions**:
+- Verify Google Calendar is connected in Dashboard → Calendar
+- Check Edge Function logs in Supabase Dashboard
+- Verify `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set
+- Check that Edge Function `create-calendar-event` is deployed
+- Verify OAuth scopes include calendar write access
 
-### Authentication Issues
+#### Emails Not Sending
 
-**Problem:** Users can't log in or sessions expire.
+**Problem**: Confirmation or reminder emails not being sent.
 
-**Solutions:**
-- Check Supabase Auth settings
-- Verify environment variables are correct
-- Check middleware configuration
-- Verify cookie settings
-- Check Supabase project status
+**Solutions**:
+- Check Mailgun Dashboard → Sending → Logs for errors
+- Verify Edge Function environment variables are set
+- Check Edge Function logs in Supabase Dashboard
+- Verify webhook is configured correctly
+- Ensure `MAILGUN_FROM_EMAIL` uses verified domain
 
-### Timezone Issues
+#### Shared Dashboard Not Showing Data
 
-**Problem:** Times showing incorrectly or availability calculations wrong.
+**Problem**: Shared dashboard shows no meetings, availability, or event types.
 
-**Solutions:**
-- Verify user timezone is set correctly
-- Check timezone conversion in availability calculation
-- Ensure all times are stored in UTC
-- Verify client-side timezone detection
-
-## Key Features Highlights
-
-- **No Double-Booking:** Atomic booking with time slot locking prevents race conditions
-- **Timezone-Aware:** All calculations respect user timezones
-- **Concurrent-Safe:** Prevents race conditions in booking
-- **Secure:** RLS policies ensure data isolation
-- **Scalable:** Built on Supabase infrastructure
-- **User-Friendly:** Modern UI with Tailwind CSS
+**Solutions**:
+- Verify RLS policies are updated (run `DASHBOARD_SHARING_RLS_POLICIES.sql`)
+- Check that sharing access was granted correctly
+- Verify permission level is 'view' or 'edit'
+- Check that user has access via `dashboard_shares` table
 
 ## Support
 
 For issues or questions:
 1. Check the troubleshooting section above
-2. Review Supabase documentation
-3. Check Next.js documentation
+2. Review Supabase documentation: https://supabase.com/docs
+3. Check Next.js documentation: https://nextjs.org/docs
 4. Review the code comments in the codebase
-
-## License
-
-[Add your license here]
 
 ---
 
-**Status:** ✅ Core functionality complete, ⚠️ Edge Functions need implementation
+**Status**: ✅ Production-ready with all core features implemented
 
-The application is ready for deployment after completing Edge Function integrations (calendar and email).
+Planno is a fully functional scheduling application with calendar integration, email notifications, and dashboard sharing capabilities.

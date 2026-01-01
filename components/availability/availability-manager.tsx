@@ -251,12 +251,12 @@ export default function AvailabilityManager({ initialRules, isSharedDashboard = 
                         </span>
                       </div>
                       {canEdit && (
-                        <button
-                          onClick={() => deleteRule(globalIndex, rule.id)}
+                      <button
+                        onClick={() => deleteRule(globalIndex, rule.id)}
                           className="px-3 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 text-sm font-medium rounded transition-colors"
-                        >
-                          Remove
-                        </button>
+                      >
+                        Remove
+                      </button>
                       )}
                     </div>
                   )
@@ -264,35 +264,35 @@ export default function AvailabilityManager({ initialRules, isSharedDashboard = 
               </div>
             )}
             {canEdit && (
-              <button
-                onClick={() => {
-                  const newRule: AvailabilityRule = {
-                    day_of_week: day.value,
-                    start_time: '09:00',
-                    end_time: '17:00',
-                    is_available: true,
-                  }
-                  setRules([...rules, newRule])
-                }}
+            <button
+              onClick={() => {
+                const newRule: AvailabilityRule = {
+                  day_of_week: day.value,
+                  start_time: '09:00',
+                  end_time: '17:00',
+                  is_available: true,
+                }
+                setRules([...rules, newRule])
+              }}
                 className="mt-2 text-sm text-navy-700 hover:text-navy-900 font-medium"
-              >
-                + Add time slot
-              </button>
+            >
+              + Add time slot
+            </button>
             )}
           </div>
         ))}
       </div>
 
       {canEdit && (
-        <div className="mt-6 flex justify-end space-x-4">
-          <button
-            onClick={saveRules}
-            disabled={loading}
+      <div className="mt-6 flex justify-end space-x-4">
+        <button
+          onClick={saveRules}
+          disabled={loading}
             className="px-4 py-2 bg-navy-900 text-white rounded-md hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? 'Saving...' : 'Save Availability'}
-          </button>
-        </div>
+        >
+          {loading ? 'Saving...' : 'Save Availability'}
+        </button>
+      </div>
       )}
     </div>
   )
