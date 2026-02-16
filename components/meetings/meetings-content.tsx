@@ -3,13 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import MeetingsList from '@/components/meetings/meetings-list'
+import MeetingsList, { type Meeting } from '@/components/meetings/meetings-list'
 import CreateMeetingModal from '@/components/meetings/create-meeting-modal'
-
-interface Meeting {
-  id: string
-  [key: string]: unknown
-}
 
 interface EventTypeOption {
   id: string

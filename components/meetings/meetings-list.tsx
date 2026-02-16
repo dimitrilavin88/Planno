@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import DownloadICSButton from '@/components/calendar/download-ics-button'
 
-interface Meeting {
+export interface Meeting {
   id: string
   event_type_id?: string | null
   start_time: string
@@ -18,7 +18,7 @@ interface Meeting {
     name: string
     location_type: string
     location?: string
-  }>
+  }> | null
   participants: Array<{
     name: string
     email: string
