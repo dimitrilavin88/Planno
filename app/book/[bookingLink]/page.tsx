@@ -35,9 +35,9 @@ export default async function BookPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow-sm p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{eventType.name}</h1>
+      <div className="max-w-4xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow-sm p-5 sm:p-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{eventType.name}</h1>
           {eventType.description && (
             <p className="text-gray-600 mb-6">{eventType.description}</p>
           )}

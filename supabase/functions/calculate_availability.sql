@@ -79,11 +79,7 @@ BEGIN
           CONTINUE;
         END IF;
 
-        -- Apply buffers
-        v_utc_slot_start := v_utc_slot_start - (v_event_type.buffer_before_minutes || ' minutes')::INTERVAL;
-        v_utc_slot_end := v_utc_slot_end + (v_event_type.buffer_after_minutes || ' minutes')::INTERVAL;
-
-        -- Check for conflicts with existing meetings
+        -- Check for conflicts with existing meetings (considering buffers - slot times returned are actual meeting times)
         v_has_conflict := false;
         FOR v_meeting IN
           SELECT *
@@ -91,8 +87,9 @@ BEGIN
           WHERE host_user_id = v_event_type.user_id
             AND status IN ('confirmed', 'pending')
             AND (
-              -- Meeting overlaps with slot (considering buffers)
-              (start_time < v_utc_slot_end AND end_time > v_utc_slot_start)
+              -- Meeting overlaps with slot when buffers are considered
+              (start_time < v_utc_slot_end + (v_event_type.buffer_after_minutes || ' minutes')::INTERVAL
+               AND end_time > v_utc_slot_start - (v_event_type.buffer_before_minutes || ' minutes')::INTERVAL)
             )
         LOOP
           v_has_conflict := true;

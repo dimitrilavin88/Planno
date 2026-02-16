@@ -238,6 +238,12 @@ For a complete, all-in-one database setup, run:
 3. **`DASHBOARD_SHARING_RLS_POLICIES.sql`** (if you want dashboard sharing)
    - Updates RLS policies to support dashboard sharing
 
+4. **`supabase/functions/get_user_host_display.sql`** (for group event host display)
+   - Enables "Last Name, First Name - username" format in group event host dropdown
+
+5. **`supabase/functions/fix_group_event_hosts_rls.sql`** (if you get "infinite recursion" error when creating group events)
+   - Fixes RLS policy recursion on `group_event_type_hosts` table
+
 ### Manual Setup (Step-by-Step)
 
 If you prefer to set up manually or troubleshoot, run these SQL files in order:

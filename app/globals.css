@@ -104,3 +104,8 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Improve touch responsiveness on mobile - reduces tap delay */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+

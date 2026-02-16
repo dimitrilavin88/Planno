@@ -1,7 +1,6 @@
 import { requireAuth } from '@/lib/auth/utils'
 import { createClient } from '@/lib/supabase/server'
-import MeetingsList from '@/components/meetings/meetings-list'
-import Link from 'next/link'
+import MeetingsContent from '@/components/meetings/meetings-content'
 
 export default async function MeetingsPage() {
   const user = await requireAuth()
@@ -14,71 +13,49 @@ export default async function MeetingsPage() {
     .eq('id', user.id)
     .single()
 
-  // Fetch upcoming meetings
-  const { data: upcomingMeetings } = await supabase
-    .from('meetings')
-    .select(`
-      *,
-      event_types:event_type_id (
-        name,
-        location_type,
-        location
-      ),
-      participants:meeting_participants (
-        name,
-        email,
-        is_host
-      )
-    `)
-    .eq('host_user_id', user.id)
-    .in('status', ['confirmed', 'pending'])
-    .gte('start_time', new Date().toISOString())
-    .order('start_time', { ascending: true })
+  // Fetch user's event types and group event types (for Create Meeting)
+  const { data: eventTypes } = await supabase
+    .from('event_types')
+    .select('id, name, duration_minutes')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .order('name')
 
-  // Fetch past meetings
-  const { data: pastMeetings } = await supabase
-    .from('meetings')
+  const { data: groupEventTypesRaw } = await supabase
+    .from('group_event_types')
     .select(`
-      *,
-      event_types:event_type_id (
-        name,
-        location_type,
-        location
-      ),
-      participants:meeting_participants (
-        name,
-        email,
-        is_host
-      )
+      id,
+      name,
+      duration_minutes,
+      hosts:group_event_type_hosts ( user_id )
     `)
-    .eq('host_user_id', user.id)
-    .in('status', ['confirmed', 'completed'])
-    .lt('start_time', new Date().toISOString())
-    .order('start_time', { ascending: false })
-    .limit(20)
+    .eq('is_active', true)
+
+  const groupEventTypes =
+    groupEventTypesRaw?.filter((g: any) =>
+      Array.isArray(g.hosts) ? g.hosts.some((h: any) => h.user_id === user.id) : false
+    ) || []
+
+  // Fetch meetings via RPC (bypasses RLS; function filters by auth.uid() as host or participant)
+  const { data: upcomingMeetings } = await supabase.rpc('get_my_meetings', { p_upcoming: true })
+  const { data: pastMeetings } = await supabase.rpc('get_my_meetings', { p_upcoming: false })
+
+  const eventTypesForModal = eventTypes || []
+  const groupEventTypesForModal = groupEventTypes.map((g: any) => ({
+    id: g.id,
+    name: g.name,
+    duration_minutes: g.duration_minutes,
+  }))
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-serif font-bold text-navy-900">Meetings</h1>
-          <p className="mt-2 text-gray-600">
-            Manage your upcoming and past meetings
-          </p>
-          </div>
-          <Link
-            href="/dashboard"
-            className="px-4 py-2 bg-navy-900 text-white rounded-lg hover:bg-navy-800 transition-colors"
-          >
-            Back to Dashboard
-          </Link>
-        </div>
-
-        <MeetingsList
+      <div className="max-w-7xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+        <MeetingsContent
           upcomingMeetings={upcomingMeetings || []}
           pastMeetings={pastMeetings || []}
           userTimezone={userProfile?.timezone || 'UTC'}
+          eventTypes={eventTypesForModal}
+          groupEventTypes={groupEventTypesForModal}
         />
       </div>
     </div>

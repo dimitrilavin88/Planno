@@ -40,17 +40,13 @@ export default function BookingFlow({
   const [participantName, setParticipantName] = useState('')
   const [participantEmail, setParticipantEmail] = useState('')
   const [participantNotes, setParticipantNotes] = useState('')
-  const [timezone, setTimezone] = useState('UTC')
-
-  // Detect user timezone
-  useEffect(() => {
+  const [timezone, setTimezone] = useState(() => {
     try {
-      const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-      setTimezone(detectedTz)
-    } catch (e) {
-      // Ignore
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    } catch {
+      return 'UTC'
     }
-  }, [])
+  })
 
   // Set initial date to tomorrow
   useEffect(() => {
@@ -68,22 +64,24 @@ export default function BookingFlow({
 
     const supabase = createClient()
     const startDate = selectedDate
-    const endDate = new Date(selectedDate)
-    endDate.setDate(endDate.getDate() + 13) // Show 2 weeks of availability
+    // Parse date in a timezone-safe way: YYYY-MM-DD + 13 days
+    const [y, m, d] = selectedDate.split('-').map(Number)
+    const endDateObj = new Date(y, m - 1, d + 13)
+    const endDate = endDateObj.toISOString().split('T')[0]
 
     try {
       const { data, error: rpcError } = await supabase.rpc('calculate_availability', {
         p_event_type_id: eventTypeId,
         p_start_date: startDate,
-        p_end_date: endDate.toISOString().split('T')[0],
+        p_end_date: endDate,
         p_timezone: timezone,
       })
 
       if (rpcError) throw rpcError
 
-      // Filter slots for selected date only
+      // Filter slots for selected date only (slot_start_local is in visitor's timezone - extract date directly to avoid timezone conversion bugs)
       const slotsForDate = (data || []).filter((slot: TimeSlot) => {
-        const slotDate = new Date(slot.slot_start_local).toISOString().split('T')[0]
+        const slotDate = String(slot.slot_start_local || '').slice(0, 10)
         return slotDate === selectedDate
       })
 
@@ -204,7 +202,7 @@ export default function BookingFlow({
           onChange={(e) => setSelectedDate(e.target.value)}
           min={minDate.toISOString().split('T')[0]}
           max={maxDate.toISOString().split('T')[0]}
-          className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-navy-500 focus:border-navy-700"
+          className="w-full min-h-[48px] px-4 py-3 text-base border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-navy-500 focus:border-navy-700"
         />
       </div>
 
@@ -230,12 +228,13 @@ export default function BookingFlow({
           <label className="block text-sm font-medium text-gray-700 mb-3">
             Available Times
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
             {timeSlots.map((slot, index) => (
               <button
                 key={index}
+                type="button"
                 onClick={() => setSelectedSlot(slot)}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:border-navy-700 hover:bg-navy-50 text-sm font-medium transition-colors"
+                className="min-h-[48px] px-4 py-3 border border-gray-300 rounded-lg hover:border-navy-700 hover:bg-navy-50 text-sm font-medium transition-colors active:bg-navy-100"
               >
                 {formatTime(slot.slot_start_local)}
               </button>
@@ -283,7 +282,7 @@ export default function BookingFlow({
               required
               value={participantName}
               onChange={(e) => setParticipantName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-navy-500 focus:border-navy-700"
+              className="w-full min-h-[48px] px-4 py-3 text-base border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-navy-500 focus:border-navy-700"
             />
           </div>
 
@@ -296,7 +295,7 @@ export default function BookingFlow({
               required
               value={participantEmail}
               onChange={(e) => setParticipantEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-navy-500 focus:border-navy-700"
+              className="w-full min-h-[48px] px-4 py-3 text-base border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-navy-500 focus:border-navy-700"
             />
           </div>
 
@@ -308,26 +307,26 @@ export default function BookingFlow({
               value={participantNotes}
               onChange={(e) => setParticipantNotes(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-navy-500 focus:border-navy-700"
+              className="w-full min-h-[80px] px-4 py-3 text-base border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-navy-500 focus:border-navy-700"
               placeholder="Any additional information you'd like to share..."
             />
           </div>
 
-          <div className="flex justify-end space-x-4 pt-4">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end sm:space-x-4 pt-4">
             <button
               type="button"
               onClick={() => {
                 setSelectedSlot(null)
                 setError(null)
               }}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              className="min-h-[48px] px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
             >
               Change Time
             </button>
             <button
               type="submit"
               disabled={booking}
-              className="px-6 py-2 bg-navy-900 text-white rounded-md hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="min-h-[48px] px-6 py-3 bg-navy-900 text-white rounded-lg hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
             >
               {booking ? 'Booking...' : 'Confirm Booking'}
             </button>

@@ -75,9 +75,9 @@ export default function RescheduleMeeting({
 
       if (rpcError) throw rpcError
 
-      // Filter slots for selected date, excluding current meeting time
+      // Filter slots for selected date, excluding current meeting time (extract date directly to avoid timezone conversion bugs)
       const slotsForDate = (data || []).filter((slot: any) => {
-        const slotDate = new Date(slot.slot_start_local).toISOString().split('T')[0]
+        const slotDate = String(slot.slot_start_local || '').slice(0, 10)
         const slotStart = new Date(slot.slot_start)
         const currentStart = new Date(currentStartTime)
         return slotDate === selectedDate && slotStart.getTime() !== currentStart.getTime()

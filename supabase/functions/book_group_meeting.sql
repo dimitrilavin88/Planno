@@ -6,7 +6,8 @@ CREATE OR REPLACE FUNCTION public.book_group_meeting(
   p_start_time TIMESTAMPTZ,
   p_participant_name TEXT,
   p_participant_email TEXT,
-  p_participant_notes TEXT DEFAULT NULL
+  p_participant_notes TEXT DEFAULT NULL,
+  p_recurring_schedule_id UUID DEFAULT NULL
 )
 RETURNS JSONB AS $$
 DECLARE
@@ -90,7 +91,8 @@ BEGIN
     timezone,
     location_type,
     location,
-    status
+    status,
+    recurring_schedule_id
   ) VALUES (
     NULL,
     v_host.id,
@@ -101,7 +103,8 @@ BEGIN
     v_host.timezone,
     v_group_event_type.location_type,
     v_group_event_type.location,
-    'confirmed'
+    'confirmed',
+    p_recurring_schedule_id
   ) RETURNING id INTO v_meeting_id;
 
   -- Create participants for all hosts
@@ -190,6 +193,6 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION public.book_group_meeting(UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.book_group_meeting(UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION public.book_group_meeting(UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.book_group_meeting(UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, UUID) TO anon;
 

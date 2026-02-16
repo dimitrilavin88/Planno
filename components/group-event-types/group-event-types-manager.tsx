@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
@@ -24,19 +25,26 @@ interface GroupEventType {
   }>
 }
 
+interface AvailableHost {
+  id: string
+  username: string
+  displayLabel: string
+}
+
 interface Props {
   initialGroups: GroupEventType[]
   currentUserId: string
+  availableHosts?: AvailableHost[]
+  baseUrl?: string
 }
 
-export default function GroupEventTypesManager({ initialGroups, currentUserId }: Props) {
+export default function GroupEventTypesManager({ initialGroups, currentUserId, availableHosts = [], baseUrl = '' }: Props) {
   const router = useRouter()
   const [groups, setGroups] = useState<GroupEventType[]>(initialGroups)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [hostUsernames, setHostUsernames] = useState<string[]>(['']) // Start with current user
   const [selectedHostIds, setSelectedHostIds] = useState<string[]>([currentUserId])
 
   // Sync with prop changes (e.g., after refresh)
@@ -68,7 +76,6 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId }:
     setEditingId(null)
     setShowForm(false)
     setError(null)
-    setHostUsernames([''])
     setSelectedHostIds([currentUserId])
   }
 
@@ -79,10 +86,6 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId }:
     
     // Populate hosts
     if (group.hosts && Array.isArray(group.hosts)) {
-      const usernames = group.hosts.map((h: any) => 
-        h.users?.username || ''
-      ).filter(Boolean)
-      setHostUsernames(usernames.length > 0 ? usernames : [''])
       setSelectedHostIds(group.hosts.map((h: any) => h.user_id))
     }
   }
@@ -96,26 +99,13 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId }:
 
     try {
       // Validate hosts
-      const validHostUsernames = hostUsernames.filter(Boolean)
-      if (validHostUsernames.length < 2) {
+      if (selectedHostIds.length < 2) {
         setError('Group events require at least 2 hosts')
         setLoading(false)
         return
       }
 
-      // Look up user IDs for usernames
-      const { data: users } = await supabase
-        .from('users')
-        .select('id, username')
-        .in('username', validHostUsernames)
-
-      if (!users || users.length !== validHostUsernames.length) {
-        setError('One or more usernames not found')
-        setLoading(false)
-        return
-      }
-
-      const hostUserIds = users.map((u) => u.id)
+      const hostUserIds = selectedHostIds
 
       if (editingId) {
         // Update existing group
@@ -134,14 +124,18 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId }:
 
         if (updateError) throw updateError
 
-        // Update hosts (delete and recreate)
+        // Update hosts (delete and recreate) - insert current user last for RLS
         await supabase.from('group_event_type_hosts').delete().eq('group_event_type_id', editingId)
-        
-        const hostInserts = hostUserIds.map((userId) => ({
+
+        const sortedHostIdsForEdit = [...hostUserIds].sort((a, b) =>
+          a === currentUserId ? 1 : b === currentUserId ? -1 : 0
+        )
+        const hostInserts = sortedHostIdsForEdit.map((userId) => ({
           group_event_type_id: editingId,
           user_id: userId,
         }))
-        await supabase.from('group_event_type_hosts').insert(hostInserts)
+        const { error: hostsUpdateError } = await supabase.from('group_event_type_hosts').insert(hostInserts)
+        if (hostsUpdateError) throw hostsUpdateError
       } else {
         // Create new group
         const { data: newGroup, error: insertError } = await supabase
@@ -161,12 +155,16 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId }:
 
         if (insertError) throw insertError
 
-        // Create host relationships
-        const hostInserts = hostUserIds.map((userId) => ({
+        // Create host relationships - insert current user last so RLS allows others when group is empty
+        const sortedHostIds = [...hostUserIds].sort((a, b) =>
+          a === currentUserId ? 1 : b === currentUserId ? -1 : 0
+        )
+        const hostInserts = sortedHostIds.map((userId) => ({
           group_event_type_id: newGroup.id,
           user_id: userId,
         }))
-        await supabase.from('group_event_type_hosts').insert(hostInserts)
+        const { error: hostsInsertError } = await supabase.from('group_event_type_hosts').insert(hostInserts)
+        if (hostsInsertError) throw hostsInsertError
       }
 
       resetForm()
@@ -191,8 +189,6 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId }:
 
     router.refresh()
   }
-
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
   return (
     <div className="space-y-6">
@@ -241,7 +237,7 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId }:
                   <div className="mt-2">
                     <p className="text-xs text-gray-500">Booking link:</p>
                     <code className="text-xs bg-gray-50 px-2 py-1 rounded">
-                      {baseUrl}/book-group/{group.booking_link}
+                      {baseUrl ? `${baseUrl}/book-group/${group.booking_link}` : `/book-group/${group.booking_link}`}
                     </code>
                   </div>
                 </div>
@@ -360,41 +356,61 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId }:
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hosts (usernames) * - At least 2 required
+                Hosts * - At least 2 required (select from your shared dashboards)
               </label>
-              {hostUsernames.map((username, index) => (
-                <div key={index} className="flex space-x-2 mb-2">
-                  <input
-                    type="text"
-                    value={username}
+              {availableHosts.length === 0 ? (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  No connected users found. Share your dashboard with others (or have them share with you) on the{' '}
+                  <Link href="/dashboard/sharing" className="font-semibold text-navy-700 hover:text-navy-900 underline">
+                    Sharing
+                  </Link>{' '}
+                  page to add them as group event hosts.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {selectedHostIds.map((hostId) => {
+                      const host = availableHosts.find((h) => h.id === hostId)
+                      if (!host) return null
+                      return (
+                        <span
+                          key={hostId}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-navy-100 text-navy-800 rounded-lg text-sm font-medium"
+                        >
+                          {host.displayLabel}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedHostIds(selectedHostIds.filter((id) => id !== hostId))}
+                            className="hover:text-red-700 focus:outline-none"
+                            aria-label={`Remove ${host.displayLabel}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )
+                    })}
+                  </div>
+                  <select
+                    value=""
                     onChange={(e) => {
-                      const newUsernames = [...hostUsernames]
-                      newUsernames[index] = e.target.value.toLowerCase()
-                      setHostUsernames(newUsernames)
+                      const id = e.target.value
+                      if (id && !selectedHostIds.includes(id)) {
+                        setSelectedHostIds([...selectedHostIds, id])
+                      }
                     }}
-                    placeholder="username"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                  {hostUsernames.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setHostUsernames(hostUsernames.filter((_, i) => i !== index))
-                      }}
-                      className="px-3 py-2 text-red-600 hover:text-red-800"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setHostUsernames([...hostUsernames, ''])}
-                className="text-sm text-navy-700 hover:text-navy-900"
-              >
-                + Add Host
-              </button>
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-navy-500 focus:border-navy-700 text-sm"
+                  >
+                    <option value="">Add a host...</option>
+                    {availableHosts
+                      .filter((h) => !selectedHostIds.includes(h.id))
+                      .map((host) => (
+                        <option key={host.id} value={host.id}>
+                          {host.displayLabel}
+                        </option>
+                      ))}
+                  </select>
+                </>
+              )}
             </div>
 
             <div className="flex justify-end space-x-4">
@@ -423,7 +439,7 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId }:
             setFormData({ ...newGroupEventType, booking_link: generateBookingLink() })
             setShowForm(true)
             setEditingId(null)
-            setHostUsernames([''])
+            setSelectedHostIds([currentUserId])
           }}
           className="w-full px-4 py-2 bg-navy-900 text-white rounded-md hover:bg-navy-800 transition-colors"
         >

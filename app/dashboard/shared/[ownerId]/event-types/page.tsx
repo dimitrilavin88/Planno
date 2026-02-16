@@ -3,8 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { checkDashboardAccess } from '@/lib/dashboard-access/utils'
 import { redirect } from 'next/navigation'
 import EventTypesManager from '@/components/event-types/event-types-manager'
-import LogoutButton from '@/components/auth/logout-button'
-import Logo from '@/components/logo'
 import Link from 'next/link'
 
 interface PageProps {
@@ -37,62 +35,7 @@ export default async function SharedEventTypesPage({ params }: PageProps) {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <nav className="bg-white shadow-lg border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex items-center space-x-8">
-              <Link href="/dashboard" className="flex items-center hover:opacity-90 transition-opacity group">
-                <Logo size="lg" variant="light" showText={false} />
-              </Link>
-              <div className="hidden md:flex items-center space-x-1">
-                <Link
-                  href="/dashboard/meetings"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Meetings
-                </Link>
-                <Link
-                  href="/dashboard/availability"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Availability
-                </Link>
-                <Link
-                  href="/dashboard/event-types"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Event Types
-                </Link>
-                <Link
-                  href="/dashboard/group-event-types"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Group Events
-                </Link>
-                <Link
-                  href="/dashboard/calendar"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Calendar
-                </Link>
-                <Link
-                  href="/dashboard/sharing"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Sharing
-                </Link>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600 hidden sm:block">{user.email}</span>
-              <LogoutButton />
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <main className="max-w-4xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
           <Link
             href={`/dashboard/shared/${ownerId}`}
@@ -117,8 +60,7 @@ export default async function SharedEventTypesPage({ params }: PageProps) {
           ownerUserId={ownerId}
           canEdit={access.permissionLevel === 'edit'}
         />
-      </main>
-    </div>
+    </main>
   )
 }
 

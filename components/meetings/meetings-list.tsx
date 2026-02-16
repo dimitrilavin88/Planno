@@ -6,6 +6,7 @@ import DownloadICSButton from '@/components/calendar/download-ics-button'
 
 interface Meeting {
   id: string
+  event_type_id?: string | null
   start_time: string
   end_time: string
   status: string
@@ -25,6 +26,12 @@ interface Meeting {
   }>
 }
 
+interface EventTypeOption {
+  id: string
+  name: string
+  duration_minutes: number
+}
+
 interface Props {
   upcomingMeetings: Meeting[]
   pastMeetings: Meeting[]
@@ -32,9 +39,11 @@ interface Props {
   isSharedDashboard?: boolean
   canEdit?: boolean
   ownerId?: string
+  eventTypes?: EventTypeOption[]
+  groupEventTypes?: EventTypeOption[]
 }
 
-export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimezone = 'UTC', isSharedDashboard = false, canEdit = true, ownerId }: Props) {
+export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimezone = 'UTC', isSharedDashboard = false, canEdit = true, ownerId, eventTypes = [], groupEventTypes = [] }: Props) {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
 
   const formatDateTime = (timestamp: string) => {
@@ -97,7 +106,97 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
   }
 
   const meetings = activeTab === 'upcoming' ? upcomingMeetings : pastMeetings
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const eventTypeMeetings = meetings.filter((m) => (m as Meeting).event_type_id != null)
+  const groupEventTypeMeetings = meetings.filter((m) => (m as Meeting).event_type_id == null)
+
+  const renderMeetingCard = (meeting: Meeting) => {
+    const eventType = getEventType(meeting)
+    const allParticipants = getAllParticipants(meeting)
+    const meetingTitle = getMeetingTitle(meeting)
+    const { date, time } = formatDateTime(meeting.start_time)
+
+    return (
+      <div key={meeting.id} className="p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
+        <div className="flex justify-between items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-2">
+              <h3 className="text-base font-semibold text-gray-900 truncate">{meetingTitle}</h3>
+              <span
+                className={`shrink-0 px-2 py-0.5 text-xs rounded-full ${
+                  meeting.status === 'confirmed'
+                    ? 'bg-green-100 text-green-800'
+                    : meeting.status === 'pending'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                {meeting.status}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600">{date}</p>
+            <p className="text-sm text-gray-600">{time}</p>
+            {allParticipants.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <p className="text-xs font-medium text-gray-700 mb-1">Participants:</p>
+                <div className="space-y-0.5">
+                  {allParticipants.map((participant, index) => (
+                    <p key={participant.email || index} className="text-xs text-gray-600">
+                      {participant.name}
+                      {!participant.is_host && (
+                        <span className="text-gray-500 ml-1">({participant.email})</span>
+                      )}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+            {eventType?.location && (
+              <p className="mt-1 text-xs text-gray-500">
+                <span className="font-medium">Location:</span> {eventType.location}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <DownloadICSButton meeting={meeting as any} />
+            {activeTab === 'upcoming' && canEdit && (
+              <>
+                <Link
+                  href={`/meeting/${meeting.id}/reschedule${isSharedDashboard && ownerId ? `?returnTo=/dashboard/shared/${ownerId}/meetings` : ''}`}
+                  className="px-2 py-1 text-xs bg-navy-900 text-white rounded hover:bg-navy-800"
+                >
+                  Reschedule
+                </Link>
+                <Link
+                  href={`/meeting/${meeting.id}/cancel${isSharedDashboard && ownerId ? `?returnTo=/dashboard/shared/${ownerId}/meetings` : ''}`}
+                  className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                  Cancel
+                </Link>
+              </>
+            )}
+            {activeTab === 'upcoming' && isSharedDashboard && !canEdit && (
+              <span className="text-xs text-gray-500 italic">Read-only</span>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderSection = (title: string, sectionMeetings: Meeting[]) => (
+    <div className="flex-1 min-w-0">
+      <h3 className="px-4 py-3 text-sm font-semibold text-gray-900 bg-gray-50 border-b border-gray-200">
+        {title} ({sectionMeetings.length})
+      </h3>
+      <div className="max-h-[500px] overflow-y-auto">
+        {sectionMeetings.length === 0 ? (
+          <div className="p-6 text-center text-sm text-gray-500">No meetings</div>
+        ) : (
+          sectionMeetings.map(renderMeetingCard)
+        )}
+      </div>
+    </div>
+  )
 
   return (
     <div className="bg-white shadow rounded-lg">
@@ -127,98 +226,10 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
         </nav>
       </div>
 
-      {/* Meetings List */}
-      <div className="divide-y divide-gray-200">
-        {meetings.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            No {activeTab} meetings
-          </div>
-        ) : (
-          meetings.map((meeting) => {
-            const eventType = getEventType(meeting)
-            const guests = getGuestParticipants(meeting)
-            const allParticipants = getAllParticipants(meeting)
-            const meetingTitle = getMeetingTitle(meeting)
-            const { date, time, datetime } = formatDateTime(meeting.start_time)
-
-            return (
-              <div key={meeting.id} className="p-6 hover:bg-gray-50">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {meetingTitle}
-                      </h3>
-                      <span
-                        className={`px-2 py-1 text-xs rounded-full ${
-                          meeting.status === 'confirmed'
-                            ? 'bg-green-100 text-green-800'
-                            : meeting.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {meeting.status}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <p>
-                        <span className="font-medium">Date:</span> {date}
-                      </p>
-                      <p>
-                        <span className="font-medium">Time:</span> {time}
-                      </p>
-                      {allParticipants.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-gray-200">
-                          <p className="font-medium text-gray-700 mb-1">Participants:</p>
-                          <div className="space-y-1">
-                            {allParticipants.map((participant, index) => (
-                              <p key={participant.email || index} className="text-gray-600">
-                                {participant.name}
-                                {!participant.is_host && (
-                                  <span className="text-gray-500 text-xs ml-2">({participant.email})</span>
-                                )}
-                        </p>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {eventType?.location && (
-                        <p className="mt-2">
-                          <span className="font-medium">Location:</span> {eventType.location}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="ml-4 flex items-center space-x-2">
-                    <DownloadICSButton meeting={meeting as any} />
-                    {activeTab === 'upcoming' && canEdit && (
-                      <>
-                        <Link
-                          href={`/meeting/${meeting.id}/reschedule${isSharedDashboard && ownerId ? `?returnTo=/dashboard/shared/${ownerId}/meetings` : ''}`}
-                          className="px-3 py-1 text-sm bg-navy-900 text-white rounded hover:bg-navy-800 transition-colors"
-                        >
-                          Reschedule
-                        </Link>
-                        <Link
-                          href={`/meeting/${meeting.id}/cancel${isSharedDashboard && ownerId ? `?returnTo=/dashboard/shared/${ownerId}/meetings` : ''}`}
-                          className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                        >
-                          Cancel
-                        </Link>
-                      </>
-                    )}
-                    {activeTab === 'upcoming' && isSharedDashboard && !canEdit && (
-                      <span className="text-xs text-gray-500 italic">Read-only</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })
-        )}
+      {/* Meetings: Individual | Group */}
+      <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-200">
+        {renderSection('Individual Meetings', eventTypeMeetings)}
+        {renderSection('Group Meetings', groupEventTypeMeetings)}
       </div>
     </div>
   )

@@ -11,10 +11,12 @@ CREATE OR REPLACE FUNCTION public.book_meeting(
   p_participant_name TEXT,
   p_participant_email TEXT,
   p_participant_notes TEXT DEFAULT NULL,
-  p_lock_id TEXT DEFAULT NULL
+  p_lock_id TEXT DEFAULT NULL,
+  p_recurring_schedule_id UUID DEFAULT NULL
   ) RETURNS JSONB AS $$
 DECLARE v_event_type RECORD;
   v_user RECORD;
+  v_meeting RECORD;
   v_duration_minutes INTEGER;
   v_end_time TIMESTAMPTZ;
   v_meeting_id UUID;
@@ -126,7 +128,8 @@ IF v_daily_count >= v_event_type.daily_limit THEN RETURN jsonb_build_object(
     timezone,
     location_type,
     location,
-    status
+    status,
+    recurring_schedule_id
   )
 VALUES (
     p_event_type_id,
@@ -138,7 +141,8 @@ VALUES (
     v_event_type.user_timezone,
     v_event_type.location_type,
     v_event_type.location,
-    'confirmed'
+    'confirmed',
+    p_recurring_schedule_id
   )
 RETURNING id INTO v_meeting_id;
   -- Create host participant
@@ -275,5 +279,5 @@ WHERE locked_by = p_lock_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Grant execute permission
-GRANT EXECUTE ON FUNCTION public.book_meeting(UUID, UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.book_meeting(UUID, UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION public.book_meeting(UUID, UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.book_meeting(UUID, UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT, UUID) TO anon;

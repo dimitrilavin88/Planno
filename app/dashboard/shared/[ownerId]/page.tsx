@@ -2,8 +2,6 @@ import { requireAuth } from '@/lib/auth/utils'
 import { createClient } from '@/lib/supabase/server'
 import { checkDashboardAccess } from '@/lib/dashboard-access/utils'
 import { redirect } from 'next/navigation'
-import LogoutButton from '@/components/auth/logout-button'
-import Logo from '@/components/logo'
 import Link from 'next/link'
 import CopyButton from '@/components/copy-button'
 
@@ -133,62 +131,7 @@ export default async function SharedDashboardPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <nav className="bg-white shadow-lg border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex items-center space-x-8">
-              <Link href="/dashboard" className="flex items-center hover:opacity-90 transition-opacity group">
-                <Logo size="lg" variant="light" showText={false} />
-              </Link>
-              <div className="hidden md:flex items-center space-x-1">
-                <Link
-                  href="/dashboard/meetings"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Meetings
-                </Link>
-                <Link
-                  href="/dashboard/availability"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Availability
-                </Link>
-                <Link
-                  href="/dashboard/event-types"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Event Types
-                </Link>
-                <Link
-                  href="/dashboard/group-event-types"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Group Events
-                </Link>
-                <Link
-                  href="/dashboard/calendar"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Calendar
-                </Link>
-                <Link
-                  href="/dashboard/sharing"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Sharing
-                </Link>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600 hidden sm:block">{user.email}</span>
-              <LogoutButton />
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8">
+    <main className="max-w-7xl mx-auto py-6 sm:py-10 px-4 sm:px-6 lg:px-8">
         <div className="px-4 sm:px-0">
           <div className="mb-8 animate-fade-in">
             <div className="flex items-center justify-between mb-4">
@@ -366,8 +309,7 @@ export default async function SharedDashboardPage({ params }: PageProps) {
             </div>
           )}
         </div>
-      </main>
-    </div>
+    </main>
   )
 }
 

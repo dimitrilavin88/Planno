@@ -37,16 +37,13 @@ export default function GroupBookingFlow({
   const [participantName, setParticipantName] = useState('')
   const [participantEmail, setParticipantEmail] = useState('')
   const [participantNotes, setParticipantNotes] = useState('')
-  const [timezone, setTimezone] = useState('UTC')
-
-  useEffect(() => {
+  const [timezone, setTimezone] = useState(() => {
     try {
-      const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-      setTimezone(detectedTz)
-    } catch (e) {
-      // Ignore
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    } catch {
+      return 'UTC'
     }
-  }, [])
+  })
 
   useEffect(() => {
     const tomorrow = new Date()
@@ -63,21 +60,24 @@ export default function GroupBookingFlow({
 
     const supabase = createClient()
     const startDate = selectedDate
-    const endDate = new Date(selectedDate)
-    endDate.setDate(endDate.getDate() + 13)
+    // Parse date in a timezone-safe way: YYYY-MM-DD + 13 days
+    const [y, m, d] = selectedDate.split('-').map(Number)
+    const endDateObj = new Date(y, m - 1, d + 13)
+    const endDate = endDateObj.toISOString().split('T')[0]
 
     try {
       const { data, error: rpcError } = await supabase.rpc('calculate_group_availability', {
         p_group_event_type_id: groupEventTypeId,
         p_start_date: startDate,
-        p_end_date: endDate.toISOString().split('T')[0],
+        p_end_date: endDate,
         p_timezone: timezone,
       })
 
       if (rpcError) throw rpcError
 
+      // Filter slots for selected date (slot_start_local is in visitor's timezone - extract date directly to avoid timezone conversion bugs)
       const slotsForDate = (data || []).filter((slot: TimeSlot) => {
-        const slotDate = new Date(slot.slot_start_local).toISOString().split('T')[0]
+        const slotDate = String(slot.slot_start_local || '').slice(0, 10)
         return slotDate === selectedDate
       })
 

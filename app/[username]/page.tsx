@@ -41,29 +41,29 @@ export default async function UserSchedulingPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex justify-center">
           <Logo size="md" href="/" />
         </div>
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 p-10 animate-fade-in">
-          <h1 className="text-4xl font-serif font-bold text-navy-900 mb-4 tracking-tight">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 p-6 sm:p-10 animate-fade-in">
+          <h1 className="text-2xl sm:text-4xl font-serif font-bold text-navy-900 mb-4 tracking-tight">
             Schedule a meeting with {displayName}
           </h1>
-          <p className="text-gray-600 mb-10 text-lg">
+          <p className="text-gray-600 mb-8 sm:mb-10 text-base sm:text-lg">
             Select an event type below to see available times
           </p>
 
           {eventTypes && eventTypes.length > 0 ? (
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5">
               {eventTypes.map((eventType) => (
                 <Link
                   key={eventType.id}
                   href={`/book/${eventType.booking_link}`}
-                  className="block p-7 border-2 border-gray-200/50 rounded-2xl hover:border-navy-400/50 hover:shadow-2xl transition-all duration-300 bg-gradient-to-r from-gray-50/80 to-white hover:from-navy-50/80 hover:to-navy-100/50 group hover:-translate-y-1"
+                  className="block p-5 sm:p-7 min-h-[72px] flex flex-col justify-center border-2 border-gray-200/50 rounded-2xl hover:border-navy-400/50 hover:shadow-2xl transition-all duration-300 bg-gradient-to-r from-gray-50/80 to-white hover:from-navy-50/80 hover:to-navy-100/50 group hover:-translate-y-0.5 sm:hover:-translate-y-1"
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-2xl font-bold text-navy-900 mb-3 group-hover:text-navy-700 transition-colors">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-xl sm:text-2xl font-bold text-navy-900 mb-2 sm:mb-3 group-hover:text-navy-700 transition-colors">
                         {eventType.name}
                       </h3>
                       {eventType.description && (

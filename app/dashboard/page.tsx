@@ -1,10 +1,9 @@
 import { requireAuth } from '@/lib/auth/utils'
-import LogoutButton from '@/components/auth/logout-button'
 import CopyButton from '@/components/copy-button'
+import TimezoneSync from '@/components/timezone-sync'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import Logo from '@/components/logo'
 
 export default async function DashboardPage() {
   const user = await requireAuth()
@@ -54,29 +53,32 @@ export default async function DashboardPage() {
     .order('is_primary', { ascending: false })
     .order('created_at', { ascending: false })
 
-  // Fetch upcoming meetings with participants and event types
-  const { data: upcomingMeetings } = await supabase
-    .from('meetings')
+  // Fetch group event types where user is a host
+  const { data: groupEventTypes } = await supabase
+    .from('group_event_types')
     .select(`
       id,
-      title,
-      start_time,
-      end_time,
-      status,
-      event_types:event_type_id (
-        name
-      ),
-      participants:meeting_participants (
-        name,
-        email,
-        is_host
+      name,
+      duration_minutes,
+      is_active,
+      hosts:group_event_type_hosts (
+        user_id
       )
     `)
-    .eq('host_user_id', user.id)
-    .in('status', ['confirmed', 'pending'])
-    .gte('start_time', new Date().toISOString())
-    .order('start_time', { ascending: true })
-    .limit(5)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+
+  const userGroupEventTypes = groupEventTypes?.filter((group) =>
+    Array.isArray(group.hosts)
+      ? group.hosts.some((h: any) => h.user_id === user.id)
+      : false
+  ) || []
+
+  // Fetch upcoming meetings (host + participant) via RPC
+  const { data: upcomingMeetingsData } = await supabase.rpc('get_my_meetings', { p_upcoming: true })
+  const upcomingMeetings = Array.isArray(upcomingMeetingsData) ? upcomingMeetingsData : []
+  const individualMeetings = upcomingMeetings.filter((m: any) => m.event_type_id != null)
+  const groupMeetings = upcomingMeetings.filter((m: any) => m.event_type_id == null)
 
   const DAYS = [
     'Sunday',
@@ -150,79 +152,25 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <nav className="bg-white shadow-lg border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex items-center space-x-8">
-              <Link href="/dashboard" className="flex items-center hover:opacity-90 transition-opacity group">
-                <Logo size="lg" variant="light" showText={false} />
-              </Link>
-              <div className="hidden md:flex items-center space-x-1">
-                <Link
-                  href="/dashboard/meetings"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Meetings
-                </Link>
-                <Link
-                  href="/dashboard/availability"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Availability
-                </Link>
-                <Link
-                  href="/dashboard/event-types"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Event Types
-                </Link>
-                <Link
-                  href="/dashboard/group-event-types"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Group Events
-                </Link>
-                <Link
-                  href="/dashboard/calendar"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Calendar
-                </Link>
-                <Link
-                  href="/dashboard/sharing"
-                  className="px-4 py-2 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-                >
-                  Sharing
-                </Link>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600 hidden sm:block">{user.email}</span>
-              <LogoutButton />
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8">
+    <main className="max-w-7xl mx-auto py-6 sm:py-10 px-4 sm:px-6 lg:px-8">
+        <TimezoneSync storedTimezone={userProfile?.timezone || 'UTC'} />
         <div className="px-4 sm:px-0">
-          <div className="mb-8 animate-fade-in">
-            <h1 className="text-4xl font-serif font-bold text-navy-900 tracking-tight">
+          <div className="mb-6 sm:mb-8 animate-fade-in">
+            <h1 className="text-3xl sm:text-4xl font-serif font-bold text-navy-900 tracking-tight">
               Dashboard
             </h1>
             <p className="mt-2 text-gray-600 text-lg">
               Manage your scheduling, meetings, and availability
             </p>
           </div>
-          <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 p-10 mb-10 hover:shadow-2xl transition-all duration-300 animate-fade-in">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 p-6 sm:p-10 mb-6 sm:mb-10 hover:shadow-2xl transition-all duration-300 animate-fade-in">
             <h2 className="text-3xl font-serif font-bold text-navy-900 mb-6 tracking-tight">
               Your Public Scheduling Page
             </h2>
-            <div className="bg-gradient-to-r from-navy-50/80 to-gray-50/80 backdrop-blur-sm rounded-xl p-6 mb-6 border border-navy-100/50 shadow-sm">
+            <div className="bg-gradient-to-r from-navy-50/80 to-gray-50/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 mb-6 border border-navy-100/50 shadow-sm">
               <p className="text-sm font-semibold text-navy-800 mb-4">Share this link:</p>
-              <div className="flex items-center space-x-3">
-                <code className="flex-1 bg-white/90 backdrop-blur-sm px-5 py-3.5 rounded-xl border border-gray-200/50 text-sm font-mono text-navy-900 shadow-inner">
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:space-x-3">
+                <code className="flex-1 min-w-0 bg-white/90 backdrop-blur-sm px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl border border-gray-200/50 text-xs sm:text-sm font-mono text-navy-900 shadow-inner truncate sm:overflow-visible">
                   {baseUrl}/{username}
                 </code>
                 <CopyButton text={`${baseUrl}/${username}`} />
@@ -238,54 +186,75 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-10">
-            <Link
-              href="/dashboard/meetings"
-              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
-            >
-              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Meetings</h3>
-              {upcomingMeetings && upcomingMeetings.length > 0 ? (
-                <div className="space-y-4 overflow-y-scroll max-h-48 flex-1 dashboard-scrollable">
-                  {upcomingMeetings.map((meeting: any) => {
-                    const allParticipants = meeting.participants || []
-                    const guests = allParticipants.filter((p: any) => !p.is_host) || []
-                    const guestNames = guests.length > 0 ? guests.map((g: any) => g.name).join(', ') : null
-                    // Get meeting title from event type or use meeting.title
-                    const eventType = Array.isArray(meeting.event_types) ? meeting.event_types[0] : meeting.event_types
-                    const meetingTitle = eventType?.name || meeting.title || 'Meeting'
-                    return (
-                      <div key={meeting.id} className="text-gray-700 text-sm p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
-                        <p>
-                          <span className="font-semibold text-navy-900">{meetingTitle}</span>
-                        </p>
-                        {allParticipants.length > 0 && (
-                          <p className="text-xs text-gray-600 mt-2">
-                            {allParticipants.length === 1 ? (
-                              <span>1 participant</span>
-                            ) : (
-                              <span>{allParticipants.length} participants</span>
-                            )}
-                            {guestNames && (
-                              <span className="text-navy-700"> - {guestNames}</span>
-                            )}
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-600 mt-2 font-medium">
-                          {formatMeetingDateTime(meeting.start_time)}
-                        </p>
-                      </div>
-                    )
-                  })}
+          {/* Upcoming Meetings - Full-width prominent section */}
+          <Link
+            href="/dashboard/meetings"
+            className="block bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-6 sm:p-8 mb-8 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 transition-all duration-300 group"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl sm:text-3xl font-serif font-bold text-navy-900 group-hover:text-navy-700 transition-colors">Upcoming Meetings</h2>
+              <span className="text-sm font-medium text-navy-600 group-hover:translate-x-1 transition-transform">View all →</span>
+            </div>
+            {upcomingMeetings.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Individual Meetings ({individualMeetings.length})</h3>
+                  <div className="space-y-4 overflow-y-auto max-h-64 dashboard-scrollable">
+                    {individualMeetings.slice(0, 8).map((meeting: any) => {
+                      const allParticipants = meeting.participants || []
+                      const guests = allParticipants.filter((p: any) => !p.is_host) || []
+                      const guestNames = guests.length > 0 ? guests.map((g: any) => g.name).join(', ') : null
+                      const eventType = Array.isArray(meeting.event_types) ? meeting.event_types[0] : meeting.event_types
+                      const meetingTitle = eventType?.name || meeting.title || 'Meeting'
+                      return (
+                        <div key={meeting.id} className="text-gray-700 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
+                          <p className="font-semibold text-navy-900 text-base">{meetingTitle}</p>
+                          {allParticipants.length > 0 && (
+                            <p className="text-sm text-gray-600 mt-2">
+                              {allParticipants.length === 1 ? '1 participant' : `${allParticipants.length} participants`}
+                              {guestNames && <span className="text-navy-700"> — {guestNames}</span>}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-600 mt-2 font-medium">{formatMeetingDateTime(meeting.start_time)}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-              ) : (
-              <p className="text-gray-600 text-sm">
-                View and manage your meetings
-              </p>
-              )}
-            </Link>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Group Meetings ({groupMeetings.length})</h3>
+                  <div className="space-y-4 overflow-y-auto max-h-64 dashboard-scrollable">
+                    {groupMeetings.slice(0, 8).map((meeting: any) => {
+                      const allParticipants = meeting.participants || []
+                      const guests = allParticipants.filter((p: any) => !p.is_host) || []
+                      const guestNames = guests.length > 0 ? guests.map((g: any) => g.name).join(', ') : null
+                      const eventType = Array.isArray(meeting.event_types) ? meeting.event_types[0] : meeting.event_types
+                      const meetingTitle = eventType?.name || meeting.title || 'Meeting'
+                      return (
+                        <div key={meeting.id} className="text-gray-700 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
+                          <p className="font-semibold text-navy-900 text-base">{meetingTitle}</p>
+                          {allParticipants.length > 0 && (
+                            <p className="text-sm text-gray-600 mt-2">
+                              {allParticipants.length === 1 ? '1 participant' : `${allParticipants.length} participants`}
+                              {guestNames && <span className="text-navy-700"> — {guestNames}</span>}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-600 mt-2 font-medium">{formatMeetingDateTime(meeting.start_time)}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-600 text-base py-8">No upcoming meetings. View and manage your meetings.</p>
+            )}
+          </Link>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             <Link
               href="/dashboard/availability"
-              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5 sm:p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 flex flex-col group min-h-[120px]"
             >
               <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Availability</h3>
               {availabilityRules && availabilityRules.length > 0 ? (
@@ -313,7 +282,7 @@ export default async function DashboardPage() {
             </Link>
             <Link
               href="/dashboard/event-types"
-              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5 sm:p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 flex flex-col group min-h-[120px]"
             >
               <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Event Types</h3>
               {eventTypes && eventTypes.length > 0 ? (
@@ -348,16 +317,35 @@ export default async function DashboardPage() {
             </Link>
             <Link
               href="/dashboard/group-event-types"
-              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 group"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5 sm:p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 flex flex-col group min-h-[120px]"
             >
-              <h3 className="text-xl font-serif font-bold text-navy-900 mb-2 group-hover:text-navy-700 transition-colors">Group Events</h3>
-              <p className="text-gray-600 text-sm">
-                Create events with multiple hosts
-              </p>
+              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Group Events</h3>
+              {userGroupEventTypes.length > 0 ? (
+                <div className="space-y-4 overflow-y-scroll max-h-48 flex-1 dashboard-scrollable">
+                  {userGroupEventTypes.map((group: any) => {
+                    const hours = Math.floor(group.duration_minutes / 60)
+                    const minutes = group.duration_minutes % 60
+                    const duration =
+                      hours > 0
+                        ? `${hours}h ${minutes > 0 ? `${minutes}m` : ''}`.trim()
+                        : `${minutes}m`
+                    return (
+                      <p key={group.id} className="text-gray-700 text-sm p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
+                        <span className="font-semibold text-navy-900">{group.name}</span>{' '}
+                        <span className="text-gray-600">({duration})</span>
+                      </p>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-600 text-sm">
+                  Create events with multiple hosts
+                </p>
+              )}
             </Link>
             <Link
               href="/dashboard/calendar"
-              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5 sm:p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 flex flex-col group min-h-[120px]"
             >
               <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Calendar</h3>
               {calendars && calendars.length > 0 ? (
@@ -469,7 +457,6 @@ export default async function DashboardPage() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </main>
   )
 }

@@ -17,8 +17,9 @@ export default function CopyButton({ text }: CopyButtonProps) {
 
   return (
     <button
+      type="button"
       onClick={handleCopy}
-      className="px-5 py-2.5 bg-gradient-to-r from-navy-900 to-navy-800 text-white rounded-xl hover:from-navy-800 hover:to-navy-700 text-sm font-semibold disabled:opacity-50 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
+      className="flex-shrink-0 min-h-[48px] px-5 py-3 flex items-center justify-center bg-gradient-to-r from-navy-900 to-navy-800 text-white rounded-xl hover:from-navy-800 hover:to-navy-700 text-sm font-semibold disabled:opacity-50 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
       disabled={copied}
     >
       {copied ? '✓ Copied!' : 'Copy'}

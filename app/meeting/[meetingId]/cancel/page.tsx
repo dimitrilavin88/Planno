@@ -1,5 +1,6 @@
+import { requireAuth } from '@/lib/auth/utils'
 import { createClient } from '@/lib/supabase/server'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import CancelMeeting from '@/components/meeting/cancel-meeting'
 
 interface PageProps {
@@ -13,40 +14,30 @@ interface PageProps {
 }
 
 export default async function CancelPage({ params, searchParams }: PageProps) {
+  await requireAuth()
   const { meetingId } = await params
   const { token, returnTo } = await searchParams
 
   const supabase = await createClient()
 
-  // Fetch meeting details
-  const { data: meeting, error } = await supabase
-    .from('meetings')
-    .select(`
-      *,
-      event_types:event_type_id (
-        name
-      )
-    `)
-    .eq('id', meetingId)
-    .in('status', ['confirmed', 'pending'])
-    .single()
+  // Fetch meeting via RPC (bypasses RLS; verifies user has access)
+  const { data: meeting, error } = await supabase.rpc('get_meeting_for_cancel', {
+    p_meeting_id: meetingId,
+  })
 
   if (error || !meeting) {
     notFound()
   }
-
-  const eventType = Array.isArray(meeting.event_types)
-    ? meeting.event_types[0]
-    : meeting.event_types
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-sm p-8">
           <CancelMeeting
-            meetingId={meetingId}
-            meetingTitle={eventType.name}
+            meetingId={meeting.id}
+            meetingTitle={meeting.title}
             startTime={meeting.start_time}
+            recurringScheduleId={meeting.recurring_schedule_id}
             token={token}
             returnTo={returnTo}
           />

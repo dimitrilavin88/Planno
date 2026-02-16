@@ -11,33 +11,42 @@ export default function ProfileSetupPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Common timezones
-  const timezones = [
+  // Common timezones (detected timezone is always added if not in list)
+  const baseTimezones = [
     'UTC',
     'America/New_York',
     'America/Chicago',
     'America/Denver',
     'America/Los_Angeles',
+    'America/Phoenix',
     'America/Toronto',
+    'America/Vancouver',
     'Europe/London',
     'Europe/Paris',
     'Europe/Berlin',
+    'Europe/Amsterdam',
     'Asia/Tokyo',
     'Asia/Shanghai',
+    'Asia/Kolkata',
     'Australia/Sydney',
   ]
 
+  const [detectedTz, setDetectedTz] = useState<string | null>(null)
+  const timezones = [
+    ...(detectedTz && !baseTimezones.includes(detectedTz) ? [detectedTz] : []),
+    ...baseTimezones,
+  ].sort((a, b) => (a === 'UTC' ? -1 : b === 'UTC' ? 1 : a.localeCompare(b)))
+
   useEffect(() => {
-    // Try to detect user's timezone
     try {
-      const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-      if (timezones.includes(detectedTz)) {
-        setTimezone(detectedTz)
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+      if (tz) {
+        setDetectedTz(tz)
+        setTimezone(tz)
       }
-    } catch (e) {
+    } catch {
       // Ignore errors
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {

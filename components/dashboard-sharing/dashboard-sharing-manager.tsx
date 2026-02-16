@@ -157,7 +157,7 @@ export default function DashboardSharingManager({
   return (
     <div className="space-y-8">
       {/* Grant Access Form */}
-      <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 p-8">
+      <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 p-5 sm:p-8">
         <h2 className="text-2xl font-serif font-bold text-navy-900 mb-6">
           Grant Access
         </h2>
@@ -219,8 +219,8 @@ export default function DashboardSharingManager({
       </div>
 
       {/* Current Shares List */}
-      <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 p-8">
-        <h2 className="text-2xl font-serif font-bold text-navy-900 mb-6">
+      <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 p-5 sm:p-8">
+        <h2 className="text-xl sm:text-2xl font-serif font-bold text-navy-900 mb-4 sm:mb-6">
           Shared With
         </h2>
 
@@ -231,16 +231,18 @@ export default function DashboardSharingManager({
             {shares.map((share) => (
               <div
                 key={share.id}
-                className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white border border-gray-200/50 hover:shadow-md transition-all"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 sm:p-5 rounded-xl bg-gradient-to-r from-gray-50 to-white border border-gray-200/50 hover:shadow-md transition-all"
               >
-                <div className="flex-1">
-                  <p className="font-semibold text-navy-900">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-navy-900 truncate">
                     {share.shared_with_user?.display_name || share.shared_with_user?.username || share.shared_with_user?.email || 'Unknown User'}
                   </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {share.shared_with_user?.email && share.shared_with_user?.email}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
+                  {share.shared_with_user?.email && (
+                    <p className="text-sm text-gray-600 mt-0.5 truncate">
+                      {share.shared_with_user.email}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       share.permission_level === 'edit'
                         ? 'bg-blue-100 text-blue-800'
@@ -256,7 +258,7 @@ export default function DashboardSharingManager({
                 <button
                   onClick={() => handleRevokeAccess(share.id, share.shared_with_user_id)}
                   disabled={loading}
-                  className="px-4 py-2 text-sm font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-shrink-0 w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2.5 sm:py-2 flex items-center justify-center text-sm font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Revoke
                 </button>
@@ -268,38 +270,36 @@ export default function DashboardSharingManager({
 
       {/* Shared With Me Section */}
       {sharedWithMe.length > 0 && (
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 p-8">
-          <h2 className="text-2xl font-serif font-bold text-navy-900 mb-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 p-5 sm:p-8">
+          <h2 className="text-xl sm:text-2xl font-serif font-bold text-navy-900 mb-4 sm:mb-6">
             Dashboards Shared With Me
           </h2>
           <div className="space-y-4">
             {sharedWithMe.map((share) => (
               <div
                 key={share.id}
-                className="p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white border border-gray-200/50"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 sm:p-5 rounded-xl bg-gradient-to-r from-gray-50 to-white border border-gray-200/50"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-navy-900">
-                      {share.owner?.display_name || share.owner?.username || 'Unknown User'}&apos;s Dashboard
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        share.permission_level === 'edit'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {share.permission_level === 'edit' ? 'Edit Access' : 'View Only'}
-                      </span>
-                    </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-navy-900 truncate">
+                    {share.owner?.display_name || share.owner?.username || 'Unknown User'}&apos;s Dashboard
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      share.permission_level === 'edit'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {share.permission_level === 'edit' ? 'Edit Access' : 'View Only'}
+                    </span>
                   </div>
-                  <Link
-                    href={`/dashboard/shared/${share.owner_user_id}`}
-                    className="px-4 py-2 text-sm font-semibold text-navy-900 bg-navy-50 border border-navy-200 rounded-lg hover:bg-navy-100 transition-all"
-                  >
-                    {share.permission_level === 'edit' ? 'Edit Dashboard' : 'View Dashboard'}
-                  </Link>
                 </div>
+                <Link
+                  href={`/dashboard/shared/${share.owner_user_id}`}
+                  className="flex-shrink-0 w-full sm:w-auto min-h-[44px] flex items-center justify-center px-4 py-2.5 sm:py-2 text-sm font-semibold text-navy-900 bg-navy-50 border border-navy-200 rounded-lg hover:bg-navy-100 transition-all"
+                >
+                  {share.permission_level === 'edit' ? 'Edit Dashboard' : 'View Dashboard'}
+                </Link>
               </div>
             ))}
           </div>
