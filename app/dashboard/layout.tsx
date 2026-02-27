@@ -1,6 +1,10 @@
 import { requireAuth } from '@/lib/auth/utils'
 import DashboardNav from '@/components/dashboard/dashboard-nav'
 
+// Reliability over cache performance for workflow-critical dashboard views.
+// Ensures post-mutation navigations render fresh server state without manual refresh.
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardLayout({
   children,
 }: {

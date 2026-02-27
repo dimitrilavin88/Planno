@@ -15,17 +15,30 @@ DECLARE
   v_old_end_time TIMESTAMPTZ;
   v_has_conflict BOOLEAN;
 BEGIN
-  -- Get meeting details
+  -- Get meeting details (support both individual and group events)
   SELECT
-    m.*,
-    et.*,
-    u.timezone as user_timezone
+    m.id,
+    m.host_user_id,
+    m.start_time,
+    m.end_time,
+    COALESCE(et.duration_minutes, get.duration_minutes) AS duration_minutes,
+    COALESCE(et.minimum_notice_hours, get.minimum_notice_hours) AS minimum_notice_hours,
+    COALESCE(et.buffer_before_minutes, 0) AS buffer_before_minutes,
+    COALESCE(et.buffer_after_minutes, 0) AS buffer_after_minutes,
+    u.timezone AS user_timezone
   INTO v_meeting
   FROM public.meetings m
-  JOIN public.event_types et ON et.id = m.event_type_id
   JOIN public.users u ON u.id = m.host_user_id
+  LEFT JOIN public.event_types et ON et.id = m.event_type_id
+  LEFT JOIN public.group_event_types get ON get.name = m.title
+    AND get.is_active = true
+    AND EXISTS (
+      SELECT 1 FROM public.group_event_type_hosts geth
+      WHERE geth.group_event_type_id = get.id AND geth.user_id = m.host_user_id
+    )
   WHERE m.id = p_meeting_id
-    AND m.status IN ('confirmed', 'pending');
+    AND m.status IN ('confirmed', 'pending')
+    AND (et.id IS NOT NULL OR get.id IS NOT NULL);
 
   IF NOT FOUND THEN
     RETURN jsonb_build_object(
@@ -54,17 +67,17 @@ BEGIN
   v_has_conflict := false;
   
   FOR v_event_type IN
-    SELECT *
-    FROM public.meetings
-    WHERE host_user_id = v_meeting.host_user_id
-      AND id != p_meeting_id
-      AND status IN ('confirmed', 'pending')
+    SELECT m.*
+    FROM public.meetings m
+    LEFT JOIN public.meeting_participants mp ON mp.meeting_id = m.id AND mp.user_id = v_meeting.host_user_id
+    WHERE m.id != p_meeting_id
+      AND m.status IN ('confirmed', 'pending')
+      AND (m.host_user_id = v_meeting.host_user_id OR mp.user_id IS NOT NULL)
       AND (
-        -- Overlap check considering buffers
-        (start_time < v_new_end_time + (v_meeting.buffer_after_minutes || ' minutes')::INTERVAL 
-         AND end_time > p_new_start_time - (v_meeting.buffer_before_minutes || ' minutes')::INTERVAL)
+        m.start_time < v_new_end_time + (v_meeting.buffer_after_minutes || ' minutes')::INTERVAL
+        AND m.end_time > p_new_start_time - (v_meeting.buffer_before_minutes || ' minutes')::INTERVAL
       )
-      FOR UPDATE
+      FOR UPDATE OF m
   LOOP
     v_has_conflict := true;
     EXIT;

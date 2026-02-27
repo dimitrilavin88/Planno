@@ -262,10 +262,10 @@ export default function EventTypesManager({ initialEventTypes, isSharedDashboard
           </div>
         ) : (
           eventTypes.map((eventType) => (
-            <div key={eventType.id} className="p-6">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3">
+            <div key={eventType.id} className="p-4 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:justify-between sm:items-start">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2 sm:space-x-3">
                     <h3 className="text-lg font-semibold text-gray-900">{eventType.name}</h3>
                     <span
                       className={`px-2 py-1 text-xs rounded-full ${
@@ -293,15 +293,15 @@ export default function EventTypesManager({ initialEventTypes, isSharedDashboard
                     <span>Notice: {eventType.minimum_notice_hours} hours</span>
                     {eventType.daily_limit && <span>Daily limit: {eventType.daily_limit}</span>}
                   </div>
-                  <div className="mt-2">
+                  <div className="mt-2 min-w-0 max-w-full">
                     <p className="text-xs text-gray-500">Booking link:</p>
-                    <code className="text-xs bg-gray-50 px-2 py-1 rounded">
+                    <code className="block text-xs bg-gray-50 px-2 py-1.5 rounded mt-0.5 break-all max-w-full">
                       {baseUrl}/book/{eventType.booking_link}
                     </code>
                   </div>
                 </div>
                 {canEdit && (
-                  <div className="ml-4 flex space-x-2">
+                  <div className="flex flex-shrink-0 flex-wrap gap-2 sm:ml-4 sm:flex-nowrap sm:space-x-2">
                     <button
                       onClick={() => toggleActive(eventType.id!, eventType.is_active)}
                       className={`px-3 py-1 text-sm rounded ${
@@ -327,7 +327,7 @@ export default function EventTypesManager({ initialEventTypes, isSharedDashboard
                   </div>
                 )}
                 {!canEdit && (
-                  <div className="ml-4">
+                  <div className="flex-shrink-0 sm:ml-4">
                     <span className="text-xs text-gray-500 italic">Read-only</span>
                   </div>
                 )}

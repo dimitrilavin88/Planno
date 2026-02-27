@@ -5,6 +5,7 @@
 -- Drop existing overloads so schema cache picks up the new signature
 DROP FUNCTION IF EXISTS public.create_recurring_meetings(INTEGER, TEXT, UUID, UUID, INTEGER, TEXT);
 DROP FUNCTION IF EXISTS public.create_recurring_meetings(INTEGER, TEXT, UUID, UUID, INTEGER, TEXT, INTEGER);
+DROP FUNCTION IF EXISTS public.create_recurring_meetings(INTEGER, TEXT, UUID, UUID, INTEGER, TEXT, INTEGER, DATE);
 
 CREATE OR REPLACE FUNCTION public.create_recurring_meetings(
   p_day_of_week INTEGER,  -- 0=Sunday, 1=Monday, ..., 6=Saturday (required)
@@ -13,7 +14,8 @@ CREATE OR REPLACE FUNCTION public.create_recurring_meetings(
   p_group_event_type_id UUID DEFAULT NULL,
   p_weeks_ahead INTEGER DEFAULT 4,  -- Ignored: always capped at 4 for stability
   p_timezone TEXT DEFAULT 'UTC',
-  p_interval_weeks INTEGER DEFAULT 1  -- 1=weekly, 2=bi-weekly, etc.
+  p_interval_weeks INTEGER DEFAULT 1,  -- 1=weekly, 2=bi-weekly, etc.
+  p_first_occurrence_date DATE DEFAULT NULL  -- when set, first meeting is on this date (user's chosen start date)
 )
 RETURNS JSONB AS $$
 DECLARE
@@ -111,16 +113,24 @@ BEGIN
   )
   RETURNING id INTO v_schedule_id;
 
-  -- Compute first occurrence date
-  v_ref_ts := NOW() AT TIME ZONE p_timezone;
-  v_ref_date := v_ref_ts::DATE;
-  v_ref_time := v_ref_ts::TIME;
-  v_current_dow := EXTRACT(DOW FROM v_ref_date)::INTEGER;
-  v_days_ahead := (p_day_of_week - v_current_dow + 7) % 7;
-  IF v_days_ahead = 0 AND v_ref_time >= v_target_time THEN
-    v_days_ahead := 7;
+  -- First occurrence: use user-selected date when provided, otherwise next occurrence of day_of_week from today
+  IF p_first_occurrence_date IS NOT NULL THEN
+    v_ref_date := (NOW() AT TIME ZONE p_timezone)::DATE;
+    IF p_first_occurrence_date < v_ref_date THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Start date cannot be in the past');
+    END IF;
+    v_first_date := p_first_occurrence_date;
+  ELSE
+    v_ref_ts := NOW() AT TIME ZONE p_timezone;
+    v_ref_date := v_ref_ts::DATE;
+    v_ref_time := v_ref_ts::TIME;
+    v_current_dow := EXTRACT(DOW FROM v_ref_date)::INTEGER;
+    v_days_ahead := (p_day_of_week - v_current_dow + 7) % 7;
+    IF v_days_ahead = 0 AND v_ref_time >= v_target_time THEN
+      v_days_ahead := 7;
+    END IF;
+    v_first_date := v_ref_date + (v_days_ahead || ' days')::INTERVAL;
   END IF;
-  v_first_date := v_ref_date + (v_days_ahead || ' days')::INTERVAL;
 
   -- Create at most 4 occurrences (1 month cap for DB stability)
   FOR v_i IN 0..(v_weeks_to_create - 1) LOOP
@@ -175,4 +185,4 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION public.create_recurring_meetings(INTEGER, TEXT, UUID, UUID, INTEGER, TEXT, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_recurring_meetings(INTEGER, TEXT, UUID, UUID, INTEGER, TEXT, INTEGER, DATE) TO authenticated;

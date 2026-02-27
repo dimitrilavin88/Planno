@@ -4,6 +4,9 @@
 -- 2. Locks the time slot
 -- 3. Creates the meeting and participants
 -- 4. Returns the meeting ID
+-- Drop legacy overload to avoid ambiguous resolution with default params
+DROP FUNCTION IF EXISTS public.book_meeting(UUID, UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION public.book_meeting(
   p_event_type_id UUID,
   p_host_user_id UUID,
@@ -72,22 +75,21 @@ IF p_lock_id IS NOT NULL THEN -- Check if lock exists and is valid
       );
     END IF;
   END IF;
-  -- Check for conflicts with existing meetings (including buffers)
+  -- Check for conflicts: host is busy if they are the meeting host OR a participant (e.g. group meeting)
   v_has_conflict := false;
   FOR v_meeting IN
-    SELECT *
-    FROM public.meetings
-    WHERE host_user_id = p_host_user_id
-      AND status IN ('confirmed', 'pending')
+    SELECT m.*
+    FROM public.meetings m
+    LEFT JOIN public.meeting_participants mp ON mp.meeting_id = m.id AND mp.user_id = p_host_user_id
+    WHERE m.status IN ('confirmed', 'pending')
+      AND (m.host_user_id = p_host_user_id OR mp.user_id IS NOT NULL)
       AND (
-        -- Overlap check considering buffers
-    (
-      start_time < v_end_time + (v_event_type.buffer_after_minutes || ' minutes')::INTERVAL
-      AND end_time > p_start_time - (v_event_type.buffer_before_minutes || ' minutes')::INTERVAL
+        m.start_time < v_end_time + (v_event_type.buffer_after_minutes || ' minutes')::INTERVAL
+        AND m.end_time > p_start_time - (v_event_type.buffer_before_minutes || ' minutes')::INTERVAL
       )
-  ) FOR
-UPDATE -- Lock rows to prevent concurrent modifications
-  LOOP v_has_conflict := true;
+    FOR UPDATE OF m
+  LOOP
+    v_has_conflict := true;
     EXIT;
   END LOOP;
 IF v_has_conflict THEN RETURN jsonb_build_object(

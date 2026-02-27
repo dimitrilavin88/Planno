@@ -53,14 +53,15 @@ BEGIN
     JOIN public.users u ON u.id = geth.user_id
     WHERE geth.group_event_type_id = p_group_event_type_id
   LOOP
-    -- Check for conflicts
+    -- Check for conflicts: host is busy if they are the meeting host OR a participant
     SELECT EXISTS (
       SELECT 1
-      FROM public.meetings
-      WHERE host_user_id = v_host.id
-        AND status IN ('confirmed', 'pending')
-        AND (start_time < v_end_time AND end_time > p_start_time)
-      FOR UPDATE
+      FROM public.meetings m
+      LEFT JOIN public.meeting_participants mp ON mp.meeting_id = m.id AND mp.user_id = v_host.id
+      WHERE m.status IN ('confirmed', 'pending')
+        AND (m.host_user_id = v_host.id OR mp.user_id IS NOT NULL)
+        AND (m.start_time < v_end_time AND m.end_time > p_start_time)
+      FOR UPDATE OF m
     ) INTO v_has_conflict;
 
     IF v_has_conflict THEN

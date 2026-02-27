@@ -1,13 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth/utils'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
-  const user = await requireAuth()
-  const supabase = await createClient()
+  await requireAuth()
+  const supabase = await createServerClient()
 
   try {
-    const { meetingId } = await request.json()
+    const body = await request.json()
+    const meetingId = typeof body?.meetingId === 'string' ? body.meetingId : ''
 
     if (!meetingId) {
       return NextResponse.json(
@@ -16,110 +18,85 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get meeting details
-    const { data: meeting, error: meetingError } = await supabase
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(meetingId)) {
+      return NextResponse.json(
+        { error: 'Invalid meeting ID format' },
+        { status: 400 }
+      )
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json(
+        { error: 'Server configuration missing' },
+        { status: 500 }
+      )
+    }
+
+    // Current user (caller-scoped)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Load meeting with service role so we see it even after status = 'cancelled'
+    const admin = createClient(supabaseUrl, serviceRoleKey)
+    const { data: meeting, error: meetingError } = await admin
       .from('meetings')
-      .select('calendar_event_id, calendar_provider, host_user_id')
+      .select('id, host_user_id')
       .eq('id', meetingId)
-      .eq('host_user_id', user.id)
       .single()
 
     if (meetingError || !meeting) {
-      return NextResponse.json(
-        { error: 'Meeting not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: true, message: 'Meeting not found for calendar cleanup' })
     }
 
-    // If no calendar event ID, nothing to delete
-    if (!meeting.calendar_event_id) {
-      return NextResponse.json({ success: true, message: 'No calendar event to delete' })
-    }
-
-    // Get host's connected calendars
-    const { data: calendars } = await supabase
-      .from('calendars')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('provider', meeting.calendar_provider || 'google')
-      .eq('is_active', true)
-
-    if (!calendars || calendars.length === 0) {
-      return NextResponse.json({ success: true, message: 'No calendar connected' })
-    }
-
-    const calendar = calendars[0]
-
-    // Refresh token if needed
-    let accessToken = calendar.access_token
-    const tokenExpiresAt = calendar.token_expires_at ? new Date(calendar.token_expires_at) : null
-
-    if (tokenExpiresAt && tokenExpiresAt <= new Date()) {
-      const clientId = process.env.GOOGLE_CLIENT_ID
-      const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-
-      if (!clientId || !clientSecret || !calendar.refresh_token) {
-        return NextResponse.json(
-          { error: 'Missing OAuth credentials' },
-          { status: 500 }
-        )
-      }
-
-      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          refresh_token: calendar.refresh_token,
-          grant_type: 'refresh_token',
-        }),
-      })
-
-      if (!tokenResponse.ok) {
-        return NextResponse.json(
-          { error: 'Failed to refresh token' },
-          { status: 500 }
-        )
-      }
-
-      const tokens = await tokenResponse.json()
-      accessToken = tokens.access_token
-
-      await supabase
-        .from('calendars')
-        .update({
-          access_token: tokens.access_token,
-          token_expires_at: tokens.expires_in
-            ? new Date(Date.now() + tokens.expires_in * 1000)
-            : null,
-        })
-        .eq('id', calendar.id)
-    }
-
-    // Delete Google Calendar event
-    if (calendar.provider === 'google') {
-      const response = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${calendar.calendar_id}/events/${meeting.calendar_event_id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      )
-
-      // 404 means event already deleted, which is fine
-      if (!response.ok && response.status !== 404) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error?.message || 'Failed to delete calendar event')
+    // Authorize: caller must be host or a participant
+    const isHost = meeting.host_user_id === user.id
+    if (!isHost) {
+      const { data: participant } = await admin
+        .from('meeting_participants')
+        .select('user_id')
+        .eq('meeting_id', meetingId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (!participant) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
 
-    return NextResponse.json({ success: true })
-  } catch (error: any) {
+    const edgeFunctionUrl = `${supabaseUrl}/functions/v1/delete-calendar-event`
+    console.log('Calling Edge Function:', edgeFunctionUrl)
+    const response = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceRoleKey}`,
+        apikey: serviceRoleKey,
+      },
+      body: JSON.stringify({ meeting_id: meetingId }),
+    })
+
+    const responseText = await response.text()
+    let payload: unknown = {}
+    try {
+      payload = responseText ? JSON.parse(responseText) : {}
+    } catch {
+      payload = { success: false, error: responseText || 'Invalid edge response' }
+    }
+
+    if (!response.ok) {
+      return NextResponse.json(payload, { status: 500 })
+    }
+
+    return NextResponse.json(payload)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: error.message || 'Unknown error' },
+      { error: message },
       { status: 500 }
     )
   }

@@ -4,12 +4,20 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+const INTERVAL_OPTIONS = [
+  { value: 1, label: 'Every week' },
+  { value: 2, label: 'Every other week' },
+  { value: 4, label: 'Once a month' },
+] as const
+
 interface AvailabilityRule {
   id?: string
   day_of_week: number
   start_time: string
   end_time: string
   is_available: boolean
+  interval_weeks?: number
+  interval_start_date?: string | null
 }
 
 interface Props {
@@ -51,6 +59,7 @@ export default function AvailabilityManager({ initialRules, isSharedDashboard = 
         start_time: '09:00',
         end_time: '17:00',
         is_available: true,
+        interval_weeks: 1,
       },
     ])
   }
@@ -145,13 +154,23 @@ export default function AvailabilityManager({ initialRules, isSharedDashboard = 
 
       // Insert new rules
       if (rules.length > 0) {
-        const rulesToInsert = rules.map((rule) => ({
-          user_id: targetUserId,
-          day_of_week: rule.day_of_week,
-          start_time: rule.start_time,
-          end_time: rule.end_time,
-          is_available: rule.is_available,
-        }))
+        const today = new Date().toISOString().slice(0, 10)
+        const rulesToInsert = rules.map((rule) => {
+          const intervalWeeks = rule.interval_weeks ?? 1
+          const intervalStartDate =
+            intervalWeeks > 1
+              ? (rule.interval_start_date || today)
+              : null
+          return {
+            user_id: targetUserId,
+            day_of_week: rule.day_of_week,
+            start_time: rule.start_time,
+            end_time: rule.end_time,
+            is_available: rule.is_available,
+            interval_weeks: intervalWeeks,
+            interval_start_date: intervalStartDate,
+          }
+        })
 
         const { error: insertError } = await supabase
           .from('availability_rules')
@@ -228,9 +247,9 @@ export default function AvailabilityManager({ initialRules, isSharedDashboard = 
                   return (
                     <div 
                       key={rule.id || `new-${day.value}-${rule.start_time}`} 
-                      className="flex items-center space-x-4 p-3 bg-gray-50 rounded-md border border-gray-200"
+                      className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 rounded-md border border-gray-200"
                     >
-                      <div className="flex-1 flex items-center space-x-3">
+                      <div className="flex flex-1 flex-wrap items-center gap-3">
                       <input
                         type="time"
                         value={rule.start_time}
@@ -246,9 +265,26 @@ export default function AvailabilityManager({ initialRules, isSharedDashboard = 
                         disabled={!canEdit}
                         className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-navy-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
-                        <span className="text-sm text-gray-600 ml-2">
+                        <span className="text-sm text-gray-600">
                           ({formatTime(rule.start_time)} - {formatTime(rule.end_time)})
                         </span>
+                        {canEdit && (
+                          <select
+                            value={rule.interval_weeks ?? 1}
+                            onChange={(e) => updateRule(globalIndex, 'interval_weeks', Number(e.target.value))}
+                            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-navy-500 disabled:bg-gray-100"
+                            title="How often this time repeats"
+                          >
+                            {INTERVAL_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        )}
+                        {!canEdit && (
+                          <span className="text-sm text-gray-500">
+                            {INTERVAL_OPTIONS.find((o) => o.value === (rule.interval_weeks ?? 1))?.label ?? 'Every week'}
+                          </span>
+                        )}
                       </div>
                       {canEdit && (
                       <button
@@ -271,6 +307,7 @@ export default function AvailabilityManager({ initialRules, isSharedDashboard = 
                   start_time: '09:00',
                   end_time: '17:00',
                   is_available: true,
+                  interval_weeks: 1,
                 }
                 setRules([...rules, newRule])
               }}

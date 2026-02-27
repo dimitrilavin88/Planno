@@ -1,17 +1,23 @@
-import { createClient } from '@/lib/supabase/server'
-import { requireAuth } from '@/lib/auth/utils'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
-  const user = await requireAuth()
-  const supabase = await createClient()
-
   try {
-    const { meetingId } = await request.json()
+    const body = await request.json()
+    const meetingId = typeof body?.meetingId === 'string' ? body.meetingId : ''
 
     if (!meetingId) {
       return NextResponse.json(
         { error: 'Meeting ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Basic UUID validation to avoid malformed or abusive payloads
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(meetingId)) {
+      return NextResponse.json(
+        { error: 'Invalid meeting ID format' },
         { status: 400 }
       )
     }
@@ -63,9 +69,11 @@ export async function POST(request: NextRequest) {
 
     const result = await response.json()
     return NextResponse.json(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: error.message || 'Unknown error' },
+      { error: message },
       { status: 500 }
     )
   }

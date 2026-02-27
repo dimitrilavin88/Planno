@@ -87,9 +87,16 @@ export default function CreateMeetingModal({
     const supabase = createClient()
 
     if (isRecurring) {
+      if (!date || !time) {
+        setError('Please select start date and time for the recurring meeting')
+        setLoading(false)
+        return
+      }
       const startDate = new Date(`${date}T${time}:00`)
       const dayOfWeek = startDate.getDay()
       const timeStr = time.length === 5 ? time : `${time}:00`.slice(0, 5)
+      // Pass the user-selected start date so the series starts on that day, not "next occurrence of weekday"
+      const firstOccurrenceDate = date
 
       const { data, error: rpcError } = await supabase.rpc('create_recurring_meetings', {
         p_day_of_week: dayOfWeek,
@@ -99,6 +106,7 @@ export default function CreateMeetingModal({
         p_weeks_ahead: 4,
         p_timezone: userTimezone,
         p_interval_weeks: intervalWeeks,
+        p_first_occurrence_date: firstOccurrenceDate,
       })
 
       setLoading(false)
@@ -108,12 +116,29 @@ export default function CreateMeetingModal({
         return
       }
 
-      const res = data as { success?: boolean; error?: string; created_count?: number; failed_count?: number }
+      const res = data as {
+        success?: boolean
+        error?: string
+        created_count?: number
+        failed_count?: number
+        created?: Array<{ meeting_id?: string }>
+      }
       if (!res?.success && res?.error) {
         setError(res.error)
         return
       }
 
+      if (res?.created?.length) {
+        res.created.forEach((item) => {
+          if (item?.meeting_id) {
+            fetch('/api/calendar/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ meetingId: item.meeting_id }),
+            }).catch((err) => console.error('Calendar sync failed:', err))
+          }
+        })
+      }
       setResult({
         created: res?.created_count ?? 0,
         failed: res?.failed_count ?? 0,
@@ -156,12 +181,19 @@ export default function CreateMeetingModal({
           return
         }
 
-        const res = bookData as { success?: boolean; error?: string }
+        const res = bookData as { success?: boolean; error?: string; meeting_id?: string }
         if (!res?.success && res?.error) {
           setError(res.error)
           return
         }
 
+        if (res?.meeting_id) {
+          fetch('/api/calendar/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meetingId: res.meeting_id }),
+          }).catch((err) => console.error('Calendar sync failed:', err))
+        }
         setResult({ created: 1 })
         onSuccess?.()
       } else {
@@ -179,12 +211,19 @@ export default function CreateMeetingModal({
           return
         }
 
-        const res = bookData as { success?: boolean; error?: string }
+        const res = bookData as { success?: boolean; error?: string; meeting_id?: string }
         if (!res?.success && res?.error) {
           setError(res.error)
           return
         }
 
+        if (res?.meeting_id) {
+          fetch('/api/calendar/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meetingId: res.meeting_id }),
+          }).catch((err) => console.error('Calendar sync failed:', err))
+        }
         setResult({ created: 1 })
         onSuccess?.()
       }

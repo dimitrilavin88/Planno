@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { requireAuth } from '@/lib/auth/utils'
 import { notFound } from 'next/navigation'
 import RescheduleMeeting from '@/components/meeting/reschedule-meeting'
 
@@ -13,38 +14,33 @@ interface PageProps {
 }
 
 export default async function ReschedulePage({ params, searchParams }: PageProps) {
+  await requireAuth()
   const { meetingId } = await params
   const { token, returnTo } = await searchParams
 
   const supabase = await createClient()
 
-  // Fetch meeting details
-  const { data: meeting, error } = await supabase
-    .from('meetings')
-    .select(`
-      *,
-      event_types:event_type_id (
-        name,
-        description,
-        duration_minutes,
-        location_type,
-        location,
-        buffer_before_minutes,
-        buffer_after_minutes,
-        minimum_notice_hours
-      )
-    `)
-    .eq('id', meetingId)
-    .in('status', ['confirmed', 'pending'])
-    .single()
+  // Fetch meeting via RPC (bypasses RLS; works for host or participant)
+  const { data: meeting, error } = await supabase.rpc('get_meeting_for_reschedule', {
+    p_meeting_id: meetingId,
+  })
 
   if (error || !meeting) {
     notFound()
   }
 
-  const eventType = Array.isArray(meeting.event_types)
-    ? meeting.event_types[0]
-    : meeting.event_types
+  const eventType = meeting.event_type as {
+    name: string
+    duration_minutes: number
+    minimum_notice_hours: number
+  } | null
+
+  if (!eventType) {
+    notFound()
+  }
+
+  const isGroup = Boolean(meeting.is_group)
+  const groupEventTypeId = meeting.group_event_type_id as string | null
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -54,10 +50,12 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
           <p className="text-gray-600 mb-6">{eventType.name}</p>
 
           <RescheduleMeeting
-            meetingId={meetingId}
+            meetingId={meeting.id}
             currentStartTime={meeting.start_time}
             currentEndTime={meeting.end_time}
             eventTypeId={meeting.event_type_id}
+            groupEventTypeId={groupEventTypeId}
+            isGroup={isGroup}
             hostUserId={meeting.host_user_id}
             hostTimezone={meeting.timezone}
             durationMinutes={eventType.duration_minutes}

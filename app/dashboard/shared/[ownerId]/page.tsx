@@ -134,12 +134,12 @@ export default async function SharedDashboardPage({ params }: PageProps) {
     <main className="max-w-7xl mx-auto py-6 sm:py-10 px-4 sm:px-6 lg:px-8">
         <div className="px-4 sm:px-0">
           <div className="mb-8 animate-fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-4xl font-serif font-bold text-navy-900 tracking-tight">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
+              <div className="min-w-0">
+                <h1 className="text-3xl sm:text-4xl font-serif font-bold text-navy-900 tracking-tight">
                   {displayName}&apos;s Dashboard
                 </h1>
-                <p className="mt-2 text-gray-600 text-lg">
+                <p className="mt-2 text-gray-600 text-base sm:text-lg">
                   {access.permissionLevel === 'edit' 
                     ? 'You have edit access to this dashboard' 
                     : 'You have view-only access to this dashboard'}
@@ -147,9 +147,12 @@ export default async function SharedDashboardPage({ params }: PageProps) {
               </div>
               <Link
                 href="/dashboard"
-                className="px-4 py-2 text-sm font-semibold text-navy-700 bg-navy-50 border border-navy-200 rounded-lg hover:bg-navy-100 transition-all"
+                className="flex items-center justify-center gap-2 min-h-[48px] w-full sm:w-auto flex-shrink-0 px-6 py-3 text-base font-bold text-gray-900 bg-amber-400 rounded-xl hover:bg-amber-500 active:bg-amber-600 shadow-xl shadow-amber-900/30 ring-2 ring-amber-600/80 transition-all sm:rounded-lg"
               >
-                My Dashboard
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to My Dashboard
               </Link>
             </div>
           </div>
@@ -159,10 +162,10 @@ export default async function SharedDashboardPage({ params }: PageProps) {
             <h2 className="text-3xl font-serif font-bold text-navy-900 mb-6 tracking-tight">
               Public Scheduling Page
             </h2>
-            <div className="bg-gradient-to-r from-navy-50/80 to-gray-50/80 backdrop-blur-sm rounded-xl p-6 mb-6 border border-navy-100/50 shadow-sm">
+            <div className="bg-gradient-to-r from-navy-50/80 to-gray-50/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 mb-6 border border-navy-100/50 shadow-sm">
               <p className="text-sm font-semibold text-navy-800 mb-4">Share this link:</p>
-              <div className="flex items-center space-x-3">
-                <code className="flex-1 bg-white/90 backdrop-blur-sm px-5 py-3.5 rounded-xl border border-gray-200/50 text-sm font-mono text-navy-900 shadow-inner">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:space-x-3">
+                <code className="min-w-0 flex-1 break-all bg-white/90 backdrop-blur-sm px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl border border-gray-200/50 text-xs sm:text-sm font-mono text-navy-900 shadow-inner max-w-full">
                   {baseUrl}/{username}
                 </code>
                 <CopyButton text={`${baseUrl}/${username}`} />

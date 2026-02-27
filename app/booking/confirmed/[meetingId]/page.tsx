@@ -14,35 +14,18 @@ export default async function BookingConfirmedPage({ params }: PageProps) {
   const { meetingId } = await params
   const supabase = await createClient()
 
-  // Fetch meeting details with host username
-  const { data: meeting, error } = await supabase
-    .from('meetings')
-    .select(`
-      *,
-      event_types:event_type_id (
-        name,
-        location_type,
-        location
-      ),
-      host:host_user_id (
-        id,
-        username
-      )
-    `)
-    .eq('id', meetingId)
-    .single()
+  // Fetch booking confirmation details via SECURITY DEFINER RPC
+  // (avoids anon RLS 404 after successful guest booking)
+  const { data: meeting, error } = await supabase.rpc('get_booking_confirmation', {
+    p_meeting_id: meetingId,
+  })
 
   if (error || !meeting) {
     notFound()
   }
 
-  const eventType = Array.isArray(meeting.event_types)
-    ? meeting.event_types[0]
-    : meeting.event_types
-
-  const host = Array.isArray(meeting.host) ? meeting.host[0] : meeting.host
-  const hostUsername = host?.username
-  const hostUserId = host?.id
+  const hostUsername = meeting.host_username
+  const hostUserId = meeting.host_user_id
 
   // Get host's display name from auth metadata
   let hostDisplayName = hostUsername
@@ -87,7 +70,7 @@ export default async function BookingConfirmedPage({ params }: PageProps) {
           </p>
 
           <div className="bg-gradient-to-br from-gray-50/80 to-navy-50/80 backdrop-blur-sm rounded-2xl p-8 mb-8 text-left border border-navy-100/50 shadow-lg">
-            <h2 className="text-2xl font-serif font-bold text-navy-900 mb-6">{eventType.name}</h2>
+            <h2 className="text-2xl font-serif font-bold text-navy-900 mb-6">{meeting.title}</h2>
             
             <div className="space-y-4 text-base">
               <div className="flex items-start py-3 border-b border-gray-200/50">
@@ -119,14 +102,14 @@ export default async function BookingConfirmedPage({ params }: PageProps) {
                 </span>
               </div>
 
-              {eventType.location && (
+              {meeting.location && (
                 <div className="flex items-start py-3 border-b border-gray-200/50">
                   <span className="font-bold text-navy-800 w-28">Location:</span>
-                  <span className="text-gray-900 font-semibold">{eventType.location}</span>
+                  <span className="text-gray-900 font-semibold">{meeting.location}</span>
                 </div>
               )}
 
-              {eventType.location_type === 'video' && (
+              {meeting.location_type === 'video' && (
                 <div className="flex items-start py-3">
                   <span className="font-bold text-navy-800 w-28">Type:</span>
                   <span className="text-gray-900 font-semibold">Video Call</span>
@@ -144,11 +127,11 @@ export default async function BookingConfirmedPage({ params }: PageProps) {
             <p className="text-sm font-bold text-navy-900 mb-4">Add to Calendar:</p>
             <AddToCalendarButton
               meeting={{
-                title: eventType.name,
-                description: eventType.description || '',
+                title: meeting.title,
+                description: meeting.description || '',
                 startTime: meeting.start_time,
                 endTime: meeting.end_time,
-                location: eventType.location || '',
+                location: meeting.location || '',
                 timezone: meeting.timezone || 'UTC',
               }}
             />

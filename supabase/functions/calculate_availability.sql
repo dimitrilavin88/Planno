@@ -32,6 +32,9 @@ DECLARE
   v_meeting RECORD;
   v_has_conflict BOOLEAN;
   v_daily_count INTEGER;
+  v_ref_date DATE;
+  v_weeks_since INTEGER;
+  v_interval_weeks INTEGER;
 BEGIN
   -- Get event type and user information
   SELECT
@@ -62,6 +65,16 @@ BEGIN
         AND is_available = true
       ORDER BY start_time
     LOOP
+      -- Recurrence interval: only include this date if it falls on the right week (every week, every other week, or every 4 weeks)
+      v_interval_weeks := COALESCE(v_availability_rule.interval_weeks, 1);
+      IF v_interval_weeks > 1 THEN
+        v_ref_date := COALESCE(v_availability_rule.interval_start_date, (v_availability_rule.created_at AT TIME ZONE 'UTC')::DATE);
+        v_weeks_since := (v_current_date - v_ref_date) / 7;
+        IF v_weeks_since < 0 OR (v_weeks_since % v_interval_weeks) != 0 THEN
+          CONTINUE;  -- Skip this rule on this date
+        END IF;
+      END IF;
+
       -- Calculate slot times in user's timezone
       v_slot_start := v_availability_rule.start_time;
       v_slot_end := v_availability_rule.end_time;
@@ -79,17 +92,18 @@ BEGIN
           CONTINUE;
         END IF;
 
-        -- Check for conflicts with existing meetings (considering buffers - slot times returned are actual meeting times)
+        -- Check for conflicts with existing meetings: host is busy if they are the meeting host OR a participant (e.g. group meeting)
+        -- Consider buffers so we don't offer slots that would overlap with buffer time
         v_has_conflict := false;
         FOR v_meeting IN
-          SELECT *
-          FROM public.meetings
-          WHERE host_user_id = v_event_type.user_id
-            AND status IN ('confirmed', 'pending')
+          SELECT m.*
+          FROM public.meetings m
+          LEFT JOIN public.meeting_participants mp ON mp.meeting_id = m.id AND mp.user_id = v_event_type.user_id
+          WHERE m.status IN ('confirmed', 'pending')
+            AND (m.host_user_id = v_event_type.user_id OR mp.user_id IS NOT NULL)
             AND (
-              -- Meeting overlaps with slot when buffers are considered
-              (start_time < v_utc_slot_end + (v_event_type.buffer_after_minutes || ' minutes')::INTERVAL
-               AND end_time > v_utc_slot_start - (v_event_type.buffer_before_minutes || ' minutes')::INTERVAL)
+              m.start_time < v_utc_slot_end + (v_event_type.buffer_after_minutes || ' minutes')::INTERVAL
+              AND m.end_time > v_utc_slot_start - (v_event_type.buffer_before_minutes || ' minutes')::INTERVAL
             )
         LOOP
           v_has_conflict := true;

@@ -1,6 +1,6 @@
 import { requireAuth } from '@/lib/auth/utils'
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import CancelMeeting from '@/components/meeting/cancel-meeting'
 
 interface PageProps {
@@ -26,7 +26,9 @@ export default async function CancelPage({ params, searchParams }: PageProps) {
   })
 
   if (error || !meeting) {
-    notFound()
+    // If meeting is already cancelled (or no longer accessible), avoid a transient 404 flash
+    // and return the user to their meetings context.
+    redirect(returnTo || '/dashboard/meetings')
   }
 
   return (

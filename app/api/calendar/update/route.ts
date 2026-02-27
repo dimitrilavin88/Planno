@@ -1,10 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth/utils'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
-  const user = await requireAuth()
-  const supabase = await createClient()
+  await requireAuth()
+  const supabase = await createServerClient()
 
   try {
     const { meetingId, newStartTime, newEndTime } = await request.json()
@@ -16,19 +17,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get meeting details
-    const { data: meeting, error: meetingError } = await supabase
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json(
+        { error: 'Server configuration missing' },
+        { status: 500 }
+      )
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const admin = createClient(supabaseUrl, serviceRoleKey)
+
+    // Load meeting (anyone with access can trigger calendar update; we use host's calendar)
+    const { data: meeting, error: meetingError } = await admin
       .from('meetings')
-      .select(`
-        *,
-        event_types:event_type_id (
-          name,
-          description,
-          location
-        )
-      `)
+      .select('id, host_user_id, timezone, calendar_event_id, calendar_provider')
       .eq('id', meetingId)
-      .eq('host_user_id', user.id)
       .single()
 
     if (meetingError || !meeting) {
@@ -38,11 +47,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get host's connected calendars
-    const { data: calendars } = await supabase
+    // Authorize: caller must be host or a participant
+    const isHost = meeting.host_user_id === user.id
+    if (!isHost) {
+      const { data: participant } = await admin
+        .from('meeting_participants')
+        .select('user_id')
+        .eq('meeting_id', meetingId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (!participant) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+
+    // Get host's connected calendars (use service role so we can use host's credentials)
+    const { data: calendars } = await admin
       .from('calendars')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', meeting.host_user_id)
       .eq('provider', meeting.calendar_provider || 'google')
       .eq('is_active', true)
 
@@ -51,7 +74,6 @@ export async function POST(request: NextRequest) {
     }
 
     const calendar = calendars[0]
-    const eventType = Array.isArray(meeting.event_types) ? meeting.event_types[0] : meeting.event_types
 
     // Refresh token if needed
     let accessToken = calendar.access_token
@@ -90,14 +112,15 @@ export async function POST(request: NextRequest) {
       const tokens = await tokenResponse.json()
       accessToken = tokens.access_token
 
-      // Update token in database
-      await supabase
+      // Update host's calendar token in database (use admin - caller may be participant)
+      await admin
         .from('calendars')
         .update({
           access_token: tokens.access_token,
           token_expires_at: tokens.expires_in
             ? new Date(Date.now() + tokens.expires_in * 1000)
             : null,
+          updated_at: new Date().toISOString(),
         })
         .eq('id', calendar.id)
     }

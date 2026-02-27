@@ -8,7 +8,9 @@ interface RescheduleMeetingProps {
   meetingId: string
   currentStartTime: string
   currentEndTime: string
-  eventTypeId: string
+  eventTypeId: string | null
+  groupEventTypeId?: string | null
+  isGroup?: boolean
   hostUserId: string
   hostTimezone: string
   durationMinutes: number
@@ -22,6 +24,8 @@ export default function RescheduleMeeting({
   currentStartTime,
   currentEndTime,
   eventTypeId,
+  groupEventTypeId,
+  isGroup,
   hostUserId,
   hostTimezone,
   durationMinutes,
@@ -55,6 +59,7 @@ export default function RescheduleMeeting({
 
   const loadTimeSlots = useCallback(async () => {
     if (!selectedDate) return
+    if (isGroup ? !groupEventTypeId : !eventTypeId) return
 
     setLoading(true)
     setError(null)
@@ -62,26 +67,67 @@ export default function RescheduleMeeting({
 
     const supabase = createClient()
     const startDate = selectedDate
-    const endDate = new Date(selectedDate)
-    endDate.setDate(endDate.getDate() + 13)
+    // Timezone-safe end date (same as booking flows): selected date + 13 days in calendar terms
+    const [y, m, d] = selectedDate.split('-').map(Number)
+    const endDateObj = new Date(y, m - 1, d + 13)
+    const endDate = endDateObj.toISOString().split('T')[0]
 
     try {
-      const { data, error: rpcError } = await supabase.rpc('calculate_availability', {
-        p_event_type_id: eventTypeId,
-        p_start_date: startDate,
-        p_end_date: endDate.toISOString().split('T')[0],
-        p_timezone: timezone,
-      })
+      let rawSlots: any[] = []
 
-      if (rpcError) throw rpcError
-
-      // Filter slots for selected date, excluding current meeting time (extract date directly to avoid timezone conversion bugs)
-      const slotsForDate = (data || []).filter((slot: any) => {
-        const slotDate = String(slot.slot_start_local || '').slice(0, 10)
-        const slotStart = new Date(slot.slot_start)
-        const currentStart = new Date(currentStartTime)
-        return slotDate === selectedDate && slotStart.getTime() !== currentStart.getTime()
-      })
+      if (isGroup) {
+        // Use API so the request appears in the terminal and can be debugged; same logic as individual below
+        const res = await fetch('/api/meetings/group-availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groupEventTypeId,
+            excludeMeetingId: meetingId,
+            startDate,
+            endDate,
+            timezone,
+          }),
+        })
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}))
+          throw new Error(errBody?.error || `Failed to load times (${res.status})`)
+        }
+        const json = await res.json()
+        rawSlots = Array.isArray(json?.slots) ? json.slots : []
+      } else {
+        const { data, error: rpcError } = await supabase.rpc('calculate_availability', {
+          p_event_type_id: eventTypeId,
+          p_start_date: startDate,
+          p_end_date: endDate,
+          p_timezone: timezone,
+        })
+        if (rpcError) throw rpcError
+        rawSlots = (data || []) as any[]
+      }
+      // Same filter as group-booking-flow: slot_start_local is in visitor timezone; extract date as YYYY-MM-DD
+      const currentStartMs = new Date(currentStartTime).getTime()
+      const slotsForDate = rawSlots.filter((slot: any) => {
+        const slotLocal = slot.slot_start_local ?? slot.slotStartLocal
+        let slotDate: string
+        if (slotLocal == null) {
+          slotDate = slot.slot_start
+            ? new Date(slot.slot_start).toLocaleDateString('en-CA', { timeZone: timezone })
+            : ''
+        } else if (typeof slotLocal === 'object' && 'toLocaleDateString' in slotLocal) {
+          slotDate = (slotLocal as Date).toLocaleDateString('en-CA', { timeZone: timezone })
+        } else {
+          slotDate = String(slotLocal).slice(0, 10)
+        }
+        const slotStartMs = (slot.slot_start ?? slot.slotStart)
+          ? new Date(slot.slot_start ?? slot.slotStart).getTime()
+          : 0
+        return slotDate === selectedDate && slotStartMs !== currentStartMs
+      }).map((slot: any) => ({
+        slot_start: slot.slot_start ?? slot.slotStart,
+        slot_end: slot.slot_end ?? slot.slotEnd,
+        slot_start_local: slot.slot_start_local ?? slot.slotStartLocal,
+        slot_end_local: slot.slot_end_local ?? slot.slotEndLocal,
+      }))
 
       setTimeSlots(slotsForDate)
     } catch (err: any) {
@@ -89,7 +135,7 @@ export default function RescheduleMeeting({
     } finally {
       setLoading(false)
     }
-  }, [selectedDate, timezone, eventTypeId, currentStartTime])
+  }, [selectedDate, timezone, eventTypeId, groupEventTypeId, isGroup, currentStartTime, meetingId])
 
   useEffect(() => {
     if (selectedDate) {
@@ -116,19 +162,19 @@ export default function RescheduleMeeting({
         throw new Error(data?.error || rescheduleError?.message || 'Rescheduling failed')
       }
 
-      // Update calendar event (fire and forget)
-      if (selectedSlot) {
-        fetch('/api/calendar/update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            meetingId,
-            newStartTime: selectedSlot.slot_start,
-            newEndTime: selectedSlot.slot_end,
-          }),
-        }).catch((err) => {
-          console.error('Calendar update failed:', err)
-        })
+      // Update the event on Google Calendar so it stays in sync with Planno
+      const calendarUpdateRes = await fetch('/api/calendar/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          meetingId,
+          newStartTime: selectedSlot.slot_start,
+          newEndTime: selectedSlot.slot_end,
+        }),
+      })
+      if (!calendarUpdateRes.ok) {
+        console.error('Calendar update failed:', await calendarUpdateRes.text())
+        // Don't block success - meeting was rescheduled in Planno
       }
 
       setSuccess(true)

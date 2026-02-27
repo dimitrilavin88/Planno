@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import Logo from '@/components/logo'
 import LogoutButton from '@/components/auth/logout-button'
 
@@ -10,16 +11,20 @@ interface DashboardNavProps {
 }
 
 const navLinks = [
-  { href: '/dashboard/meetings', label: 'Meetings' },
-  { href: '/dashboard/availability', label: 'Availability' },
-  { href: '/dashboard/event-types', label: 'Event Types' },
-  { href: '/dashboard/group-event-types', label: 'Group Events' },
-  { href: '/dashboard/calendar', label: 'Calendar' },
-  { href: '/dashboard/sharing', label: 'Sharing' },
+  { href: '/dashboard/meetings', label: 'Meetings', sharedPath: 'meetings' },
+  { href: '/dashboard/availability', label: 'Availability', sharedPath: 'availability' },
+  { href: '/dashboard/event-types', label: 'Event Types', sharedPath: 'event-types' },
+  { href: '/dashboard/group-event-types', label: 'Group Events', sharedPath: null },
+  { href: '/dashboard/calendar', label: 'Calendar', sharedPath: null },
+  { href: '/dashboard/sharing', label: 'Sharing', sharedPath: null },
 ]
 
 export default function DashboardNav({ userEmail }: DashboardNavProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
+  const isSharedDashboard = pathname?.startsWith('/dashboard/shared') ?? false
+  // When on shared dashboard, extract ownerId so nav links go to their subpages (e.g. /dashboard/shared/ownerId/availability)
+  const sharedOwnerId = isSharedDashboard && pathname ? pathname.split('/')[3] : null
 
   return (
     <nav className="bg-white shadow-lg border-b border-gray-200">
@@ -31,15 +36,35 @@ export default function DashboardNav({ userEmail }: DashboardNavProps) {
             </Link>
             {/* Desktop nav links */}
             <div className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => (
+              {isSharedDashboard && (
                 <Link
-                  key={link.href}
-                  href={link.href}
-                  className="px-4 py-2.5 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all min-h-[44px] flex items-center"
+                  href="/dashboard"
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-gray-900 bg-amber-400 hover:bg-amber-500 rounded-lg shadow-md ring-2 ring-amber-600/80 transition-all min-h-[44px]"
                 >
-                  {link.label}
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to My Dashboard
                 </Link>
-              ))}
+              )}
+              {(isSharedDashboard && sharedOwnerId
+                ? navLinks.filter((link) => link.sharedPath != null)
+                : navLinks
+              ).map((link) => {
+                const href =
+                  isSharedDashboard && sharedOwnerId && link.sharedPath
+                    ? `/dashboard/shared/${sharedOwnerId}/${link.sharedPath}`
+                    : link.href
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="px-4 py-2.5 text-sm font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all min-h-[44px] flex items-center"
+                  >
+                    {link.label}
+                  </Link>
+                )
+              })}
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
@@ -72,16 +97,37 @@ export default function DashboardNav({ userEmail }: DashboardNavProps) {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-gray-200 bg-white">
           <div className="px-4 py-4 space-y-1">
-            {navLinks.map((link) => (
+            {isSharedDashboard && (
               <Link
-                key={link.href}
-                href={link.href}
+                href="/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-3.5 text-base font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all min-h-[48px] flex items-center"
+                className="flex items-center gap-2 w-full px-4 py-3.5 text-base font-bold text-gray-900 bg-amber-400 hover:bg-amber-500 rounded-xl shadow-md ring-2 ring-amber-600/80 transition-all min-h-[48px]"
               >
-                {link.label}
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to My Dashboard
               </Link>
-            ))}
+            )}
+            {(isSharedDashboard && sharedOwnerId
+              ? navLinks.filter((link) => link.sharedPath != null)
+              : navLinks
+            ).map((link) => {
+              const href =
+                isSharedDashboard && sharedOwnerId && link.sharedPath
+                  ? `/dashboard/shared/${sharedOwnerId}/${link.sharedPath}`
+                  : link.href
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-3.5 text-base font-semibold text-navy-700 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all min-h-[48px] flex items-center"
+                >
+                  {link.label}
+                </Link>
+              )
+            })}
           </div>
         </div>
       )}

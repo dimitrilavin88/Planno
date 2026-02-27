@@ -80,6 +80,33 @@ export default async function DashboardPage() {
   const individualMeetings = upcomingMeetings.filter((m: any) => m.event_type_id != null)
   const groupMeetings = upcomingMeetings.filter((m: any) => m.event_type_id == null)
 
+  // Dashboard sharing summary: who has access to my dashboard, whose dashboard I have access to
+  const { data: sharesWhereIAmOwner } = await supabase
+    .from('dashboard_shares')
+    .select('shared_with_user_id')
+    .eq('owner_user_id', user.id)
+  const { data: sharesWhereIHaveAccess } = await supabase
+    .from('dashboard_shares')
+    .select('owner_user_id')
+    .eq('shared_with_user_id', user.id)
+  const sharedWithCount = sharesWhereIAmOwner?.length ?? 0
+  const sharedWithMeCount = sharesWhereIHaveAccess?.length ?? 0
+  // Get display names for preview (first 2–3)
+  const sharedWithNames: string[] = []
+  if (sharesWhereIAmOwner && sharesWhereIAmOwner.length > 0) {
+    for (const row of sharesWhereIAmOwner.slice(0, 3)) {
+      const { data: name } = await supabase.rpc('get_user_display_name', { p_user_id: row.shared_with_user_id })
+      if (name && typeof name === 'string') sharedWithNames.push(name)
+    }
+  }
+  const sharedWithMeNames: string[] = []
+  if (sharesWhereIHaveAccess && sharesWhereIHaveAccess.length > 0) {
+    for (const row of sharesWhereIHaveAccess.slice(0, 3)) {
+      const { data: name } = await supabase.rpc('get_user_display_name', { p_user_id: row.owner_user_id })
+      if (name && typeof name === 'string') sharedWithMeNames.push(name)
+    }
+  }
+
   const DAYS = [
     'Sunday',
     'Monday',
@@ -169,8 +196,8 @@ export default async function DashboardPage() {
             </h2>
             <div className="bg-gradient-to-r from-navy-50/80 to-gray-50/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 mb-6 border border-navy-100/50 shadow-sm">
               <p className="text-sm font-semibold text-navy-800 mb-4">Share this link:</p>
-              <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:space-x-3">
-                <code className="flex-1 min-w-0 bg-white/90 backdrop-blur-sm px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl border border-gray-200/50 text-xs sm:text-sm font-mono text-navy-900 shadow-inner truncate sm:overflow-visible">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:space-x-3">
+                <code className="min-w-0 flex-1 break-all max-w-full bg-white/90 backdrop-blur-sm px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl border border-gray-200/50 text-xs sm:text-sm font-mono text-navy-900 shadow-inner">
                   {baseUrl}/{username}
                 </code>
                 <CopyButton text={`${baseUrl}/${username}`} />
@@ -405,6 +432,34 @@ export default async function DashboardPage() {
                   Connect Google Calendar for automatic sync
                 </p>
               )}
+            </Link>
+            <Link
+              href="/dashboard/sharing"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5 sm:p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 flex flex-col group min-h-[120px]"
+            >
+              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Dashboard Access</h3>
+              <div className="space-y-4 flex-1">
+                <div className="p-4 rounded-xl bg-navy-50/80 border border-navy-100/80">
+                  <p className="text-xs font-bold uppercase tracking-wide text-navy-600 mb-1">Who has access to yours</p>
+                  <p className="text-base font-bold text-navy-900">
+                    {sharedWithCount === 0
+                      ? 'No one yet'
+                      : sharedWithNames.length > 0
+                        ? `${sharedWithNames.join(', ')}${sharedWithCount > sharedWithNames.length ? ` +${sharedWithCount - sharedWithNames.length} more` : ''}`
+                        : `${sharedWithCount} ${sharedWithCount === 1 ? 'person' : 'people'}`}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-navy-50/80 border border-navy-100/80">
+                  <p className="text-xs font-bold uppercase tracking-wide text-navy-600 mb-1">Whose you can access</p>
+                  <p className="text-base font-bold text-navy-900">
+                    {sharedWithMeCount === 0
+                      ? 'None'
+                      : sharedWithMeNames.length > 0
+                        ? `${sharedWithMeNames.join(', ')}${sharedWithMeCount > sharedWithMeNames.length ? ` +${sharedWithMeCount - sharedWithMeNames.length} more` : ''}`
+                        : `${sharedWithMeCount} ${sharedWithMeCount === 1 ? 'dashboard' : 'dashboards'}`}
+                  </p>
+                </div>
+              </div>
             </Link>
           </div>
 

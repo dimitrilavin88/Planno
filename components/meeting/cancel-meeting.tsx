@@ -47,12 +47,12 @@ export default function CancelMeeting({
         if (cancelError || !data?.success) {
           throw new Error(data?.error || cancelError?.message || 'Failed to cancel series')
         }
-        // Calendar deletion for each meeting would require listing them - fire and forget for main meeting
-        fetch('/api/calendar/delete', {
+        // Best-effort cleanup of all Google events tied to cancelled future meetings in this series
+        await fetch('/api/calendar/delete-series', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ meetingId }),
-        }).catch(() => {})
+          body: JSON.stringify({ recurringScheduleId }),
+        }).catch(() => null)
       } else {
         const { data, error: cancelError } = await supabase.rpc('cancel_meeting', {
           p_meeting_id: meetingId,
@@ -61,19 +61,28 @@ export default function CancelMeeting({
         if (cancelError || !data || !data.success) {
           throw new Error(data?.error || cancelError?.message || 'Cancellation failed')
         }
-        fetch('/api/calendar/delete', {
+
+        // Await calendar cleanup so request is not dropped during redirect/navigation.
+        const calendarDeleteResponse = await fetch('/api/calendar/delete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ meetingId }),
-        }).catch((err) => {
-          console.error('Calendar deletion failed:', err)
         })
+
+        if (!calendarDeleteResponse.ok) {
+          console.error('Calendar deletion failed with status:', calendarDeleteResponse.status)
+        }
       }
 
       setCancelled(true)
       const returnToParam = returnTo || searchParams?.get('returnTo')
       const redirectPath = returnToParam || '/dashboard/meetings'
-      setTimeout(() => router.push(redirectPath), 2000)
+      setTimeout(() => {
+        // Force fresh server data after mutation-heavy cancel flow.
+        // This avoids stale upcoming-meetings snapshots from client navigation cache.
+        const separator = redirectPath.includes('?') ? '&' : '?'
+        window.location.assign(`${redirectPath}${separator}refresh=${Date.now()}`)
+      }, 2000)
     } catch (err: any) {
       setError(err.message || 'Failed to cancel meeting')
       setCancelling(false)

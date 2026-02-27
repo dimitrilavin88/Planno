@@ -206,9 +206,9 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId, a
           </div>
         ) : (
           groups.map((group) => (
-            <div key={group.id} className="p-6">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
+            <div key={group.id} className="p-4 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:justify-between sm:items-start">
+                <div className="min-w-0 flex-1">
                   <h3 className="text-lg font-semibold text-gray-900">{group.name}</h3>
                   {group.description && (
                     <p className="mt-1 text-sm text-gray-600">{group.description}</p>
@@ -234,14 +234,14 @@ export default function GroupEventTypesManager({ initialGroups, currentUserId, a
                       </div>
                     </div>
                   )}
-                  <div className="mt-2">
+                  <div className="mt-2 min-w-0 max-w-full">
                     <p className="text-xs text-gray-500">Booking link:</p>
-                    <code className="text-xs bg-gray-50 px-2 py-1 rounded">
+                    <code className="block text-xs bg-gray-50 px-2 py-1.5 rounded mt-0.5 break-all max-w-full">
                       {baseUrl ? `${baseUrl}/book-group/${group.booking_link}` : `/book-group/${group.booking_link}`}
                     </code>
                   </div>
                 </div>
-                <div className="ml-4 flex space-x-2">
+                <div className="flex flex-shrink-0 flex-wrap gap-2 sm:ml-4 sm:flex-nowrap sm:space-x-2">
                   <button
                     onClick={() => handleEdit(group)}
                     className="px-3 py-1 text-sm bg-navy-900 text-white rounded hover:bg-navy-800 transition-colors"
