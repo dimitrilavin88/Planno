@@ -13,6 +13,7 @@ CREATE OR REPLACE FUNCTION public.book_meeting(
   p_start_time TIMESTAMPTZ,
   p_participant_name TEXT,
   p_participant_email TEXT,
+  p_participant_phone TEXT DEFAULT NULL,
   p_participant_notes TEXT DEFAULT NULL,
   p_lock_id TEXT DEFAULT NULL,
   p_recurring_schedule_id UUID DEFAULT NULL
@@ -255,6 +256,23 @@ END IF;
     DELETE FROM public.time_slot_locks
     WHERE locked_by = p_lock_id;
   END IF;
+
+  -- Create SMS reminder record if a phone number was provided
+  IF TRIM(COALESCE(p_participant_phone, '')) <> '' THEN
+    INSERT INTO public.reminders (
+      booking_id,
+      phone_number,
+      scheduled_for,
+      status
+    )
+    VALUES (
+      v_meeting_id,
+      TRIM(p_participant_phone),
+      p_start_time - INTERVAL '15 minutes',
+      'pending'
+    );
+  END IF;
+
   -- Return success with meeting ID
   RETURN jsonb_build_object(
   'success',
@@ -281,5 +299,5 @@ WHERE locked_by = p_lock_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Grant execute permission
-GRANT EXECUTE ON FUNCTION public.book_meeting(UUID, UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT, UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.book_meeting(UUID, UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT, UUID) TO anon;
+GRANT EXECUTE ON FUNCTION public.book_meeting(UUID, UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT, TEXT, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.book_meeting(UUID, UUID, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT, TEXT, UUID) TO anon;

@@ -38,8 +38,10 @@ export default function BookingFlow({
 
   // Form fields
   const [participantName, setParticipantName] = useState('')
-  const [participantEmail, setParticipantEmail] = useState('')
+  const [participantPhone, setParticipantPhone] = useState('')
   const [participantNotes, setParticipantNotes] = useState('')
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [phoneError, setPhoneError] = useState<string | null>(null)
   const [timezone, setTimezone] = useState(() => {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
@@ -106,15 +108,30 @@ export default function BookingFlow({
 
     // Validate required fields
     const trimmedName = participantName.trim()
-    const trimmedEmail = participantEmail.trim()
-    
+    const rawPhone = participantPhone.trim()
+    const digitsOnly = rawPhone.replace(/\D/g, '')
+
+    let hasError = false
+    setNameError(null)
+    setPhoneError(null)
+
     if (!trimmedName) {
-      setError('Please enter your name')
-      return
+      setNameError('Please enter your name')
+      hasError = true
     }
-    
-    if (!trimmedEmail) {
-      setError('Please enter your email address')
+
+    if (!rawPhone) {
+      setPhoneError('Please enter your phone number')
+      hasError = true
+    }
+
+    if (rawPhone && digitsOnly.length !== 10) {
+      setPhoneError('Please enter a valid 10-digit phone number')
+      hasError = true
+    }
+
+    if (hasError) {
+      setError('Please fix the highlighted fields.')
       return
     }
 
@@ -147,7 +164,8 @@ export default function BookingFlow({
         p_host_user_id: hostUserId,
         p_start_time: selectedSlot.slot_start,
         p_participant_name: trimmedName, // Use trimmed name
-        p_participant_email: trimmedEmail, // Use trimmed email
+        p_participant_email: null, // Email not collected in this flow
+        p_participant_phone: digitsOnly, // Normalized 10-digit phone number
         p_participant_notes: participantNotes?.trim() || null,
         p_lock_id: lockId,
       })
@@ -164,6 +182,15 @@ export default function BookingFlow({
       }).catch((err) => {
         console.error('Calendar sync failed:', err)
         // Don't throw - calendar sync failure shouldn't block booking
+      })
+
+      // Send confirmation SMS right after booking (fire and forget)
+      fetch('/api/booking/confirm-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetingId: data.meeting_id, phoneNumber: digitsOnly }),
+      }).catch((err) => {
+        console.error('Confirmation SMS failed:', err)
       })
 
       // Redirect to confirmation page
@@ -184,10 +211,26 @@ export default function BookingFlow({
     })
   }
 
+  // Format selectedDate (YYYY-MM-DD) as a calendar date in the visitor's local calendar
+  const formatSelectedDate = (dateStr: string) => {
+    if (!dateStr) return ''
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const localDate = new Date(y, (m || 1) - 1, d || 1)
+    return localDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  }
+
   const minDate = new Date()
   minDate.setDate(minDate.getDate() + 1)
   const maxDate = new Date()
   maxDate.setDate(maxDate.getDate() + 60) // 60 days in advance
+
+  const normalizedPhoneDigits = participantPhone.trim().replace(/\D/g, '')
+  const isFormValid = participantName.trim().length > 0 && normalizedPhoneDigits.length === 10
 
   return (
     <div className="space-y-6">
@@ -249,12 +292,7 @@ export default function BookingFlow({
           <div className="bg-navy-50 rounded-md p-4 mb-4 border border-navy-200">
             <p className="text-sm font-medium text-navy-900">Selected Time</p>
             <p className="text-lg font-semibold text-navy-900">
-              {new Date(selectedDate).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
+              {formatSelectedDate(selectedDate)}
               {' at '}
               {formatTime(selectedSlot.slot_start_local)}
             </p>
@@ -281,22 +319,39 @@ export default function BookingFlow({
               type="text"
               required
               value={participantName}
-              onChange={(e) => setParticipantName(e.target.value)}
+              onChange={(e) => {
+                setParticipantName(e.target.value)
+                if (nameError) setNameError(null)
+              }}
               className="w-full min-h-[48px] px-4 py-3 text-base border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-navy-500 focus:border-navy-700"
             />
+            {nameError && (
+              <p className="mt-1 text-sm text-red-600">
+                {nameError}
+              </p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address *
+              Phone Number *
             </label>
             <input
-              type="email"
+              type="tel"
               required
-              value={participantEmail}
-              onChange={(e) => setParticipantEmail(e.target.value)}
+              value={participantPhone}
+              onChange={(e) => {
+                setParticipantPhone(e.target.value)
+                if (phoneError) setPhoneError(null)
+              }}
               className="w-full min-h-[48px] px-4 py-3 text-base border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-navy-500 focus:border-navy-700"
+              placeholder="e.g. 555-123-4567"
             />
+            {phoneError && (
+              <p className="mt-1 text-sm text-red-600">
+                {phoneError}
+              </p>
+            )}
           </div>
 
           <div>
@@ -325,7 +380,7 @@ export default function BookingFlow({
             </button>
             <button
               type="submit"
-              disabled={booking}
+              disabled={booking || !isFormValid}
               className="min-h-[48px] px-6 py-3 bg-navy-900 text-white rounded-lg hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
             >
               {booking ? 'Booking...' : 'Confirm Booking'}
