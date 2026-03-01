@@ -45,9 +45,12 @@ BEGIN
       ),
       'participants', COALESCE(
         (SELECT jsonb_agg(jsonb_build_object(
-          'name', CASE WHEN mp.is_host AND mp.user_id IS NOT NULL
-            THEN public.get_user_display_name(mp.user_id)
-            ELSE mp.name END,
+          'name', COALESCE(
+            NULLIF(TRIM(mp.name), ''),
+            CASE WHEN mp.is_host AND mp.user_id IS NOT NULL
+              THEN public.get_user_display_name(mp.user_id)
+              ELSE 'Guest' END
+          ),
           'email', mp.email,
           'is_host', mp.is_host
         ))
@@ -96,9 +99,12 @@ BEGIN
       ),
       'participants', COALESCE(
         (SELECT jsonb_agg(jsonb_build_object(
-          'name', CASE WHEN mp.is_host AND mp.user_id IS NOT NULL
-            THEN public.get_user_display_name(mp.user_id)
-            ELSE mp.name END,
+          'name', COALESCE(
+            NULLIF(TRIM(mp.name), ''),
+            CASE WHEN mp.is_host AND mp.user_id IS NOT NULL
+              THEN public.get_user_display_name(mp.user_id)
+              ELSE 'Guest' END
+          ),
           'email', mp.email,
           'is_host', mp.is_host
         ))

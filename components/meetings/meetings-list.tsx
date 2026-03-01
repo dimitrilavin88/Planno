@@ -92,6 +92,14 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
     return getParticipantsArray(meeting).filter((p) => p.is_host !== true)
   }
 
+  /** For individual meetings: show guest names, or the single participant's name (e.g. when host booked for themselves). */
+  const getMeetingWithParticipants = (meeting: Meeting) => {
+    const guests = getGuestParticipants(meeting)
+    if (guests.length > 0) return guests
+    const all = getParticipantsArray(meeting)
+    return all
+  }
+
   const getAllParticipants = (meeting: Meeting) => {
     return getParticipantsArray(meeting)
   }
@@ -141,7 +149,7 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
                   <>
                     <p className="text-xs font-medium text-gray-700 mb-1">Meeting with:</p>
                     <div className="space-y-0.5">
-                      {getGuestParticipants(meeting).map((participant, index) => (
+                      {getMeetingWithParticipants(meeting).map((participant, index) => (
                         <p key={participant.email || index} className="text-xs text-gray-600">
                           {participant.name}
                           {participant.email && (
@@ -149,7 +157,7 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
                           )}
                         </p>
                       ))}
-                      {getGuestParticipants(meeting).length === 0 && (
+                      {getMeetingWithParticipants(meeting).length === 0 && (
                         <p className="text-xs text-gray-500 italic">No guest listed</p>
                       )}
                     </div>
