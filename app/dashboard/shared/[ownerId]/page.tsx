@@ -59,8 +59,47 @@ export default async function SharedDashboardPage({ params }: PageProps) {
     .eq('user_id', ownerId)
     .order('created_at', { ascending: false })
 
-  // Fetch upcoming meetings
-  const { data: upcomingMeetings } = await supabase
+  // Fetch owner's group event types (where owner is a host)
+  const { data: groupEventTypesRaw } = await supabase
+    .from('group_event_types')
+    .select(`
+      id,
+      name,
+      duration_minutes,
+      is_active,
+      hosts:group_event_type_hosts ( user_id )
+    `)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+  const ownerGroupEventTypes = groupEventTypesRaw?.filter((g: { hosts?: { user_id: string }[] }) =>
+    Array.isArray(g.hosts) && g.hosts.some((h: { user_id: string }) => h.user_id === ownerId)
+  ) ?? []
+
+  // Fetch owner's connected calendars
+  const { data: calendars } = await supabase
+    .from('calendars')
+    .select('provider, calendar_name, is_active')
+    .eq('user_id', ownerId)
+    .eq('is_active', true)
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  // Fetch owner's dashboard shares (who they have shared with)
+  const { data: sharesWhereOwner } = await supabase
+    .from('dashboard_shares')
+    .select('shared_with_user_id')
+    .eq('owner_user_id', ownerId)
+  const sharedWithCount = sharesWhereOwner?.length ?? 0
+  const sharedWithNames: string[] = []
+  if (sharesWhereOwner && sharesWhereOwner.length > 0) {
+    for (const row of sharesWhereOwner.slice(0, 3)) {
+      const { data: name } = await supabase.rpc('get_user_display_name', { p_user_id: row.shared_with_user_id })
+      if (name && typeof name === 'string') sharedWithNames.push(name)
+    }
+  }
+
+  // Fetch upcoming meetings (more for prominent section), split into individual vs group
+  const { data: upcomingMeetingsAll } = await supabase
     .from('meetings')
     .select(`
       *,
@@ -79,7 +118,10 @@ export default async function SharedDashboardPage({ params }: PageProps) {
     .in('status', ['confirmed', 'pending'])
     .gte('start_time', new Date().toISOString())
     .order('start_time', { ascending: true })
-    .limit(5)
+    .limit(20)
+  const upcomingMeetings = upcomingMeetingsAll ?? []
+  const individualMeetings = upcomingMeetings.filter((m: { event_type_id: string | null }) => m.event_type_id != null)
+  const groupMeetings = upcomingMeetings.filter((m: { event_type_id: string | null }) => m.event_type_id == null)
 
   // Get owner's timezone
   const { data: ownerUserProfile } = await supabase
@@ -181,55 +223,77 @@ export default async function SharedDashboardPage({ params }: PageProps) {
             </Link>
           </div>
 
-          {/* Quick Stats Cards - Clickable sections */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-10">
-            {/* Meetings Card */}
-            <Link
-              href={`/dashboard/shared/${ownerId}/meetings`}
-              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
-            >
-              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Meetings</h3>
-              {upcomingMeetings && upcomingMeetings.length > 0 ? (
-                <div className="space-y-4 overflow-y-scroll max-h-48 flex-1 dashboard-scrollable">
-                  {upcomingMeetings.map((meeting: any) => {
-                    const allParticipants = meeting.participants || []
-                    const guests = allParticipants.filter((p: any) => !p.is_host) || []
-                    const guestNames = guests.length > 0 ? guests.map((g: any) => g.name).join(', ') : null
-                    const eventType = Array.isArray(meeting.event_types) ? meeting.event_types[0] : meeting.event_types
-                    const meetingTitle = eventType?.name || meeting.title || 'Meeting'
-                    return (
-                      <div key={meeting.id} className="text-gray-700 text-sm p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
-                        <p>
-                          <span className="font-semibold text-navy-900">{meetingTitle}</span>
-                        </p>
-                        {allParticipants.length > 0 && (
-                          <p className="text-xs text-gray-600 mt-2">
-                            {allParticipants.length === 1 ? (
-                              <span>1 participant</span>
-                            ) : (
-                              <span>{allParticipants.length} participants</span>
-                            )}
-                            {guestNames && (
-                              <span className="text-navy-700"> - {guestNames}</span>
-                            )}
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-600 mt-2 font-medium">
-                          {formatMeetingDateTime(meeting.start_time)}
-                        </p>
-                      </div>
-                    )
-                  })}
+          {/* Upcoming Meetings - Full-width prominent section (same as owner dashboard) */}
+          <Link
+            href={`/dashboard/shared/${ownerId}/meetings`}
+            className="block bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-6 sm:p-8 mb-8 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 transition-all duration-300 group"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl sm:text-3xl font-serif font-bold text-navy-900 group-hover:text-navy-700 transition-colors">Upcoming Meetings</h2>
+              <span className="text-sm font-medium text-navy-600 group-hover:translate-x-1 transition-transform">View all →</span>
+            </div>
+            {upcomingMeetings.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Individual Meetings ({individualMeetings.length})</h3>
+                  <div className="space-y-4 overflow-y-auto max-h-64 dashboard-scrollable">
+                    {individualMeetings.slice(0, 8).map((meeting: any) => {
+                      const allParticipants = meeting.participants || []
+                      const guests = allParticipants.filter((p: any) => !p.is_host) || []
+                      const guestNames = guests.length > 0 ? guests.map((g: any) => g.name).join(', ') : null
+                      const eventType = Array.isArray(meeting.event_types) ? meeting.event_types[0] : meeting.event_types
+                      const meetingTitle = eventType?.name || meeting.title || 'Meeting'
+                      return (
+                        <div key={meeting.id} className="text-gray-700 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
+                          <p className="font-semibold text-navy-900 text-base">{meetingTitle}</p>
+                          {allParticipants.length > 0 && (
+                            <p className="text-sm text-gray-600 mt-2">
+                              {allParticipants.length === 1 ? '1 participant' : `${allParticipants.length} participants`}
+                              {guestNames && <span className="text-navy-700"> — {guestNames}</span>}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-600 mt-2 font-medium">{formatMeetingDateTime(meeting.start_time)}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-gray-600 text-sm">No upcoming meetings</p>
-              )}
-            </Link>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Group Meetings ({groupMeetings.length})</h3>
+                  <div className="space-y-4 overflow-y-auto max-h-64 dashboard-scrollable">
+                    {groupMeetings.slice(0, 8).map((meeting: any) => {
+                      const allParticipants = meeting.participants || []
+                      const guests = allParticipants.filter((p: any) => !p.is_host) || []
+                      const guestNames = guests.length > 0 ? guests.map((g: any) => g.name).join(', ') : null
+                      const eventType = Array.isArray(meeting.event_types) ? meeting.event_types[0] : meeting.event_types
+                      const meetingTitle = eventType?.name || meeting.title || 'Meeting'
+                      return (
+                        <div key={meeting.id} className="text-gray-700 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
+                          <p className="font-semibold text-navy-900 text-base">{meetingTitle}</p>
+                          {allParticipants.length > 0 && (
+                            <p className="text-sm text-gray-600 mt-2">
+                              {allParticipants.length === 1 ? '1 participant' : `${allParticipants.length} participants`}
+                              {guestNames && <span className="text-navy-700"> — {guestNames}</span>}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-600 mt-2 font-medium">{formatMeetingDateTime(meeting.start_time)}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-600 text-base py-8">No upcoming meetings.</p>
+            )}
+          </Link>
 
+          {/* All dashboard cards - same as owner */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             {/* Availability Card */}
             <Link
               href={`/dashboard/shared/${ownerId}/availability`}
-              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5 sm:p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 flex flex-col group min-h-[120px]"
             >
               <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Availability</h3>
               {availabilityRules && availabilityRules.length > 0 ? (
@@ -259,14 +323,14 @@ export default async function SharedDashboardPage({ params }: PageProps) {
             {/* Event Types Card */}
             <Link
               href={`/dashboard/shared/${ownerId}/event-types`}
-              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-1 transition-all duration-300 flex flex-col group"
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5 sm:p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 flex flex-col group min-h-[120px]"
             >
               <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Event Types</h3>
               {eventTypes && eventTypes.length > 0 ? (
                 <div className="space-y-4 overflow-y-scroll max-h-48 flex-1 dashboard-scrollable">
                   {eventTypes
-                    .filter((et) => et.is_active)
-                    .map((eventType) => {
+                    .filter((et: { is_active: boolean }) => et.is_active)
+                    .map((eventType: { id: string; name: string; duration_minutes: number }) => {
                       const hours = Math.floor(eventType.duration_minutes / 60)
                       const minutes = eventType.duration_minutes % 60
                       const duration =
@@ -280,17 +344,94 @@ export default async function SharedDashboardPage({ params }: PageProps) {
                         </p>
                       )
                     })}
-                  {eventTypes.filter((et) => !et.is_active).length > 0 && (
+                  {eventTypes.filter((et: { is_active: boolean }) => !et.is_active).length > 0 && (
                     <p className="text-gray-400 text-xs mt-1">
-                      {eventTypes.filter((et) => !et.is_active).length} inactive
+                      {eventTypes.filter((et: { is_active: boolean }) => !et.is_active).length} inactive
                     </p>
                   )}
                 </div>
               ) : (
                 <p className="text-gray-600 text-sm">
-                  Manage your meeting types and durations
+                  Manage meeting types and durations
                 </p>
               )}
+            </Link>
+
+            {/* Group Events Card */}
+            <Link
+              href={`/dashboard/shared/${ownerId}/group-event-types`}
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5 sm:p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 flex flex-col group min-h-[120px]"
+            >
+              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Group Events</h3>
+              {ownerGroupEventTypes.length > 0 ? (
+                <div className="space-y-4 overflow-y-scroll max-h-48 flex-1 dashboard-scrollable">
+                  {ownerGroupEventTypes.map((group: { id: string; name: string; duration_minutes: number }) => {
+                    const hours = Math.floor(group.duration_minutes / 60)
+                    const minutes = group.duration_minutes % 60
+                    const duration =
+                      hours > 0
+                        ? `${hours}h ${minutes > 0 ? `${minutes}m` : ''}`.trim()
+                        : `${minutes}m`
+                    return (
+                      <p key={group.id} className="text-gray-700 text-sm p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
+                        <span className="font-semibold text-navy-900">{group.name}</span>{' '}
+                        <span className="text-gray-600">({duration})</span>
+                      </p>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-600 text-sm">
+                  Create events with multiple hosts
+                </p>
+              )}
+            </Link>
+
+            {/* Calendar Card */}
+            <Link
+              href={`/dashboard/shared/${ownerId}/calendar`}
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5 sm:p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 flex flex-col group min-h-[120px]"
+            >
+              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Calendar</h3>
+              {calendars && calendars.length > 0 ? (
+                <div className="space-y-4 overflow-y-auto max-h-48 flex-1 dashboard-scrollable">
+                  {calendars.map((calendar: { provider: string }, idx: number) => {
+                    const providerName = calendar.provider === 'google' ? 'Google' : calendar.provider === 'outlook' ? 'Outlook' : calendar.provider === 'apple' ? 'Apple' : calendar.provider.charAt(0).toUpperCase() + calendar.provider.slice(1)
+                    return (
+                      <div key={idx} className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-navy-50 hover:to-navy-100/50 transition-all duration-300 border border-gray-200/50 hover:border-navy-300/50 hover:shadow-md">
+                        <p className="text-gray-700 text-sm flex items-center gap-2">
+                          <span className="font-semibold text-green-600">✓</span>
+                          <span className="font-semibold text-navy-900">{providerName}</span>
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-600 text-sm">
+                  Connect calendar for automatic sync
+                </p>
+              )}
+            </Link>
+
+            {/* Dashboard Access Card */}
+            <Link
+              href={`/dashboard/shared/${ownerId}/sharing`}
+              className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5 sm:p-7 hover:shadow-2xl hover:border-navy-300/50 hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 flex flex-col group min-h-[120px]"
+            >
+              <h3 className="text-xl font-serif font-bold text-navy-900 mb-4 flex-shrink-0 group-hover:text-navy-700 transition-colors">Dashboard Access</h3>
+              <div className="space-y-4 flex-1">
+                <div className="p-4 rounded-xl bg-navy-50/80 border border-navy-100/80">
+                  <p className="text-xs font-bold uppercase tracking-wide text-navy-600 mb-1">Who has access</p>
+                  <p className="text-base font-bold text-navy-900">
+                    {sharedWithCount === 0
+                      ? 'No one yet'
+                      : sharedWithNames.length > 0
+                        ? `${sharedWithNames.join(', ')}${sharedWithCount > sharedWithNames.length ? ` +${sharedWithCount - sharedWithNames.length} more` : ''}`
+                        : `${sharedWithCount} ${sharedWithCount === 1 ? 'person' : 'people'}`}
+                  </p>
+                </div>
+              </div>
             </Link>
           </div>
 
@@ -298,7 +439,7 @@ export default async function SharedDashboardPage({ params }: PageProps) {
           {access.permissionLevel === 'edit' && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
               <p className="text-sm text-blue-800 font-semibold">
-                You have edit access. You can modify this dashboard&apos;s settings.
+                You have edit access. You can manage this dashboard (availability, event types, group events, and sharing).
               </p>
             </div>
           )}

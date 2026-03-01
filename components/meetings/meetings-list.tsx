@@ -82,18 +82,18 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
     return Array.isArray(meeting.event_types) ? meeting.event_types[0] : meeting.event_types
   }
 
+  const getParticipantsArray = (meeting: Meeting) => {
+    const p = meeting.participants
+    if (!p) return []
+    return Array.isArray(p) ? p : [p]
+  }
+
   const getGuestParticipants = (meeting: Meeting) => {
-    if (!meeting.participants || !Array.isArray(meeting.participants)) {
-      return []
-    }
-    return meeting.participants.filter((p) => !p.is_host)
+    return getParticipantsArray(meeting).filter((p) => p.is_host !== true)
   }
 
   const getAllParticipants = (meeting: Meeting) => {
-    if (!meeting.participants || !Array.isArray(meeting.participants)) {
-      return []
-    }
-    return meeting.participants
+    return getParticipantsArray(meeting)
   }
 
   const getMeetingTitle = (meeting: Meeting) => {
@@ -137,17 +137,38 @@ export default function MeetingsList({ upcomingMeetings, pastMeetings, userTimez
             <p className="text-sm text-gray-600">{time}</p>
             {allParticipants.length > 0 && (
               <div className="mt-2 pt-2 border-t border-gray-100">
-                <p className="text-xs font-medium text-gray-700 mb-1">Participants:</p>
-                <div className="space-y-0.5">
-                  {allParticipants.map((participant, index) => (
-                    <p key={participant.email || index} className="text-xs text-gray-600">
-                      {participant.name}
-                      {!participant.is_host && (
-                        <span className="text-gray-500 ml-1">({participant.email})</span>
+                {(meeting as Meeting).event_type_id != null ? (
+                  <>
+                    <p className="text-xs font-medium text-gray-700 mb-1">Meeting with:</p>
+                    <div className="space-y-0.5">
+                      {getGuestParticipants(meeting).map((participant, index) => (
+                        <p key={participant.email || index} className="text-xs text-gray-600">
+                          {participant.name}
+                          {participant.email && (
+                            <span className="text-gray-500 ml-1">({participant.email})</span>
+                          )}
+                        </p>
+                      ))}
+                      {getGuestParticipants(meeting).length === 0 && (
+                        <p className="text-xs text-gray-500 italic">No guest listed</p>
                       )}
-                    </p>
-                  ))}
-                </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium text-gray-700 mb-1">Participants:</p>
+                    <div className="space-y-0.5">
+                      {allParticipants.map((participant, index) => (
+                        <p key={participant.email || index} className="text-xs text-gray-600">
+                          {participant.name}
+                          {participant.email && (
+                            <span className="text-gray-500 ml-1">({participant.email})</span>
+                          )}
+                        </p>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
             {eventType?.location && (

@@ -35,11 +35,14 @@ interface SharedWithMe {
 interface DashboardSharingManagerProps {
   initialShares: Share[]
   sharedWithMe: SharedWithMe[]
+  /** When managing another user's dashboard (editor), pass their user id for grant/revoke RPCs */
+  ownerUserId?: string
 }
 
 export default function DashboardSharingManager({ 
   initialShares, 
-  sharedWithMe 
+  sharedWithMe,
+  ownerUserId: ownerUserIdProp
 }: DashboardSharingManagerProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -64,17 +67,16 @@ export default function DashboardSharingManager({
     setLoading(true)
 
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         setError('You must be logged in')
         setLoading(false)
         return
       }
+      const effectiveOwnerId = ownerUserIdProp ?? user.id
 
-      // Call the RPC function
       const { data, error: rpcError } = await supabase.rpc('grant_dashboard_access', {
-        p_owner_user_id: user.id,
+        p_owner_user_id: effectiveOwnerId,
         p_shared_email: email.trim(),
         p_permission_level: permissionLevel
       })
@@ -121,9 +123,10 @@ export default function DashboardSharingManager({
         setLoading(false)
         return
       }
+      const effectiveOwnerId = ownerUserIdProp ?? user.id
 
       const { data, error: rpcError } = await supabase.rpc('revoke_dashboard_access', {
-        p_owner_user_id: user.id,
+        p_owner_user_id: effectiveOwnerId,
         p_shared_user_id: sharedUserId
       })
 

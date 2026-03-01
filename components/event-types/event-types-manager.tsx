@@ -464,6 +464,9 @@ export default function EventTypesManager({ initialEventTypes, isSharedDashboard
                   }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-navy-500 focus:border-navy-700"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Use 0 to allow same-day and last-minute booking; higher values hide slots within that many hours of now.
+                </p>
               </div>
             </div>
 

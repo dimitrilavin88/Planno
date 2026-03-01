@@ -90,8 +90,8 @@ BEGIN
           v_utc_slot_start := (v_current_date + v_slot_start)::TIMESTAMP AT TIME ZONE COALESCE(v_host.timezone, 'UTC');
           v_utc_slot_end := v_utc_slot_start + (v_group_event_type.duration_minutes || ' minutes')::INTERVAL;
 
-          -- Check minimum notice
-          IF v_utc_slot_start >= NOW() + (v_group_event_type.minimum_notice_hours || ' hours')::INTERVAL THEN
+          -- Check minimum notice (COALESCE to 0 so same-day slots show when notice is 0)
+          IF v_utc_slot_start >= NOW() + (COALESCE(v_group_event_type.minimum_notice_hours, 0) || ' hours')::INTERVAL THEN
             -- Check for conflicts: host is busy if they are the meeting host OR a participant (exclude p_exclude_meeting_id when rescheduling)
             IF NOT EXISTS (
               SELECT 1

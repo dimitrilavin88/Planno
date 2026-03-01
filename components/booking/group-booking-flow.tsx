@@ -35,9 +35,11 @@ export default function GroupBookingFlow({
   const [error, setError] = useState<string | null>(null)
 
   const [participantName, setParticipantName] = useState('')
+  const [participantEmail, setParticipantEmail] = useState('')
   const [participantPhone, setParticipantPhone] = useState('')
   const [participantNotes, setParticipantNotes] = useState('')
   const [nameError, setNameError] = useState<string | null>(null)
+  const [emailError, setEmailError] = useState<string | null>(null)
   const [phoneError, setPhoneError] = useState<string | null>(null)
   const [timezone, setTimezone] = useState(() => {
     try {
@@ -48,9 +50,11 @@ export default function GroupBookingFlow({
   })
 
   useEffect(() => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    setSelectedDate(tomorrow.toISOString().split('T')[0])
+    const today = new Date()
+    const y = today.getFullYear()
+    const m = String(today.getMonth() + 1).padStart(2, '0')
+    const d = String(today.getDate()).padStart(2, '0')
+    setSelectedDate(`${y}-${m}-${d}`)
   }, [])
 
   const loadTimeSlots = useCallback(async () => {
@@ -103,15 +107,22 @@ export default function GroupBookingFlow({
 
     // Validate required fields
     const trimmedName = participantName.trim()
+    const trimmedEmail = participantEmail.trim().toLowerCase()
     const rawPhone = participantPhone.trim()
     const digitsOnly = rawPhone.replace(/\D/g, '')
 
     let hasError = false
     setNameError(null)
+    setEmailError(null)
     setPhoneError(null)
 
     if (!trimmedName) {
       setNameError('Please enter your name')
+      hasError = true
+    }
+
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setEmailError('Please enter a valid email address')
       hasError = true
     }
 
@@ -140,9 +151,9 @@ export default function GroupBookingFlow({
       const { data, error: bookError } = await supabase.rpc('book_group_meeting', {
         p_group_event_type_id: groupEventTypeId,
         p_start_time: selectedSlot.slot_start,
-        p_participant_name: trimmedName, // Use trimmed name
-        p_participant_email: null, // Email not collected in this flow
-        p_participant_phone: digitsOnly, // Normalized 10-digit phone number
+        p_participant_name: trimmedName,
+        p_participant_email: trimmedEmail || null,
+        p_participant_phone: digitsOnly,
         p_participant_notes: participantNotes?.trim() || null,
       })
 
@@ -198,8 +209,8 @@ export default function GroupBookingFlow({
     })
   }
 
-  const minDate = new Date()
-  minDate.setDate(minDate.getDate() + 1)
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const maxDate = new Date()
   maxDate.setDate(maxDate.getDate() + 60)
 
@@ -214,7 +225,7 @@ export default function GroupBookingFlow({
           type="date"
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
-          min={minDate.toISOString().split('T')[0]}
+          min={todayStr}
           max={maxDate.toISOString().split('T')[0]}
           className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-navy-500 focus:border-navy-700"
         />
@@ -282,6 +293,25 @@ export default function GroupBookingFlow({
             {nameError && (
               <p className="mt-1 text-sm text-red-600">
                 {nameError}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email (optional)</label>
+            <input
+              type="email"
+              value={participantEmail}
+              onChange={(e) => {
+                setParticipantEmail(e.target.value)
+                if (emailError) setEmailError(null)
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-navy-500 focus:border-navy-700"
+              placeholder="e.g. you@example.com"
+            />
+            {emailError && (
+              <p className="mt-1 text-sm text-red-600">
+                {emailError}
               </p>
             )}
           </div>

@@ -86,8 +86,8 @@ BEGIN
         v_utc_slot_start := (v_current_date + v_slot_start)::TIMESTAMP AT TIME ZONE v_event_type.user_timezone;
         v_utc_slot_end := v_utc_slot_start + (v_event_type.duration_minutes || ' minutes')::INTERVAL;
 
-        -- Check minimum notice (in hours)
-        IF v_utc_slot_start < NOW() + (v_event_type.minimum_notice_hours || ' hours')::INTERVAL THEN
+        -- Check minimum notice (in hours). COALESCE to 0 so same-day slots show when notice is 0.
+        IF v_utc_slot_start < NOW() + (COALESCE(v_event_type.minimum_notice_hours, 0) || ' hours')::INTERVAL THEN
           v_slot_start := v_slot_start + '30 minutes'::INTERVAL;
           CONTINUE;
         END IF;

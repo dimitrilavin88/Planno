@@ -14,9 +14,9 @@ const navLinks = [
   { href: '/dashboard/meetings', label: 'Meetings', sharedPath: 'meetings' },
   { href: '/dashboard/availability', label: 'Availability', sharedPath: 'availability' },
   { href: '/dashboard/event-types', label: 'Event Types', sharedPath: 'event-types' },
-  { href: '/dashboard/group-event-types', label: 'Group Events', sharedPath: null },
-  { href: '/dashboard/calendar', label: 'Calendar', sharedPath: null },
-  { href: '/dashboard/sharing', label: 'Sharing', sharedPath: null },
+  { href: '/dashboard/group-event-types', label: 'Group Events', sharedPath: 'group-event-types' },
+  { href: '/dashboard/calendar', label: 'Calendar', sharedPath: 'calendar' },
+  { href: '/dashboard/sharing', label: 'Sharing', sharedPath: 'sharing' },
 ]
 
 export default function DashboardNav({ userEmail }: DashboardNavProps) {

@@ -46,11 +46,11 @@ export async function checkApiRateLimit(
     p_max_count: maxCount,
     p_window_seconds: windowSeconds,
   }
-  const rpc = supabase.rpc as unknown as (
-    name: string,
-    params: CheckRateLimitParams
-  ) => Promise<{ data: boolean | null; error: { message: string } | null }>
-  const { data, error } = await rpc('check_rate_limit', params)
+  // Call on supabase so 'this' is preserved (extracting .rpc breaks the client binding)
+  const { data, error } = await (supabase as { rpc: (name: string, args: CheckRateLimitParams) => Promise<{ data: boolean | null; error: { message: string } | null }> }).rpc(
+    'check_rate_limit',
+    params
+  )
   if (error) {
     console.error('[rate-limit] check_rate_limit RPC error:', error.message)
     return true
