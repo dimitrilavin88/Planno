@@ -51,12 +51,14 @@ export default async function SharedGroupEventTypesPage({ params }: PageProps) {
     id: ownerId,
     username: ownerProfile?.username || 'owner',
   })
-  sharesWhereOwner?.forEach((share: { shared_with_user?: { id: string; username: string } }) => {
-    const u = share.shared_with_user
+  sharesWhereOwner?.forEach((share) => {
+    const raw = (share as { shared_with_user?: { id: string; username: string } | { id: string; username: string }[] }).shared_with_user
+    const u = Array.isArray(raw) ? raw[0] : raw
     if (u?.id) connectedUsersMap.set(u.id, { id: u.id, username: u.username || 'unknown' })
   })
-  sharesWhereOwnerIsSharedWith?.forEach((share: { owner?: { id: string; username: string } }) => {
-    const u = share.owner
+  sharesWhereOwnerIsSharedWith?.forEach((share) => {
+    const raw = (share as { owner?: { id: string; username: string } | { id: string; username: string }[] }).owner
+    const u = Array.isArray(raw) ? raw[0] : raw
     if (u?.id) connectedUsersMap.set(u.id, { id: u.id, username: u.username || 'unknown' })
   })
 
