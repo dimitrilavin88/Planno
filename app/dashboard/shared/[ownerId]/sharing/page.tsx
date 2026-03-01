@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import DashboardSharingManager from '@/components/dashboard-sharing/dashboard-sharing-manager'
 import Link from 'next/link'
 
-/** Shape expected by DashboardSharingManager initialShares */
+/** Shape expected by DashboardSharingManager initialShares (email optional, no null) */
 type ShareForManager = {
   id: string
   owner_user_id: string
@@ -15,7 +15,7 @@ type ShareForManager = {
   shared_with_user?: {
     id: string
     username: string
-    email?: string | null
+    email?: string
     display_name?: string
   }
 }
@@ -80,7 +80,7 @@ export default async function SharedSharingPage({ params }: PageProps) {
         shared_with_user: {
           id: user?.id ?? share.shared_with_user_id,
           username: user?.username ?? 'Unknown',
-          email: emailData ?? null,
+          ...(emailData != null && emailData !== '' && { email: String(emailData) }),
           display_name: (displayNameData && typeof displayNameData === 'string') ? displayNameData : (user?.username ?? 'Unknown User'),
         },
       }
