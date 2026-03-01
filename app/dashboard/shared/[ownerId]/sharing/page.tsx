@@ -5,6 +5,21 @@ import { redirect } from 'next/navigation'
 import DashboardSharingManager from '@/components/dashboard-sharing/dashboard-sharing-manager'
 import Link from 'next/link'
 
+/** Shape expected by DashboardSharingManager initialShares */
+type ShareForManager = {
+  id: string
+  owner_user_id: string
+  shared_with_user_id: string
+  permission_level: 'view' | 'edit'
+  created_at: string
+  shared_with_user?: {
+    id: string
+    username: string
+    email?: string | null
+    display_name?: string
+  }
+}
+
 interface PageProps {
   params: Promise<{ ownerId: string }>
 }
@@ -37,8 +52,19 @@ export default async function SharedSharingPage({ params }: PageProps) {
     .eq('owner_user_id', ownerId)
     .order('created_at', { ascending: false })
 
-  const sharesWithEmails = await Promise.all(
-    (shares || []).map(async (share: { shared_with_user_id: string; shared_with_user?: { id: string; username: string } }) => {
+  type RawShare = {
+    id: string
+    owner_user_id: string
+    shared_with_user_id: string
+    permission_level: 'view' | 'edit'
+    created_at: string
+    shared_with_user?: { id: string; username: string } | { id: string; username: string }[]
+  }
+  const sharesWithEmails: ShareForManager[] = await Promise.all(
+    (shares || []).map(async (row) => {
+      const share = row as RawShare
+      const nested = share.shared_with_user
+      const user = Array.isArray(nested) ? nested[0] : nested
       const { data: emailData } = await supabase.rpc('get_user_email', {
         p_user_id: share.shared_with_user_id,
       })
@@ -46,11 +72,16 @@ export default async function SharedSharingPage({ params }: PageProps) {
         p_user_id: share.shared_with_user_id,
       })
       return {
-        ...share,
+        id: share.id,
+        owner_user_id: share.owner_user_id,
+        shared_with_user_id: share.shared_with_user_id,
+        permission_level: share.permission_level,
+        created_at: share.created_at,
         shared_with_user: {
-          ...share.shared_with_user,
-          email: emailData || null,
-          display_name: displayNameData || share.shared_with_user?.username || 'Unknown User',
+          id: user?.id ?? share.shared_with_user_id,
+          username: user?.username ?? 'Unknown',
+          email: emailData ?? null,
+          display_name: (displayNameData && typeof displayNameData === 'string') ? displayNameData : (user?.username ?? 'Unknown User'),
         },
       }
     })
