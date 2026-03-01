@@ -46,11 +46,10 @@ export async function checkApiRateLimit(
     p_max_count: maxCount,
     p_window_seconds: windowSeconds,
   }
-  // Call on supabase so 'this' is preserved (extracting .rpc breaks the client binding)
-  const { data, error } = await (supabase as { rpc: (name: string, args: CheckRateLimitParams) => Promise<{ data: boolean | null; error: { message: string } | null }> }).rpc(
-    'check_rate_limit',
-    params
-  )
+  // Call on supabase so 'this' is preserved (extracting .rpc breaks the client binding).
+  // Cast via unknown: check_rate_limit is a custom RPC not in generated types, and .rpc returns a thenable builder.
+  const rpc = (supabase as unknown as { rpc(n: string, a: CheckRateLimitParams): Promise<{ data: boolean | null; error: { message: string } | null }> }).rpc
+  const { data, error } = await rpc.call(supabase, 'check_rate_limit', params)
   if (error) {
     console.error('[rate-limit] check_rate_limit RPC error:', error.message)
     return true
