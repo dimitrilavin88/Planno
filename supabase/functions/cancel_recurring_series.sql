@@ -66,6 +66,20 @@ BEGIN
     AND m.status = 'cancelled'
     AND mp.status != 'cancelled';
 
+  -- Audit: series cancelled
+  INSERT INTO public.workflow_audit_log (event_type, actor_user_id, resource_type, resource_id, action, details)
+  VALUES (
+    'series_cancelled',
+    v_user_id,
+    'recurring_schedule',
+    p_recurring_schedule_id,
+    'cancelled',
+    jsonb_build_object(
+      'cancelled_count', v_cancelled_count,
+      'cancelled_at', NOW()
+    )
+  );
+
   RETURN jsonb_build_object(
     'success', true,
     'recurring_schedule_id', p_recurring_schedule_id,

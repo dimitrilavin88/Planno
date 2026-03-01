@@ -348,6 +348,11 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Allow process-reminders to be invoked by pg_net/cron without a Supabase JWT.
+# The function should be protected by a shared secret (e.g. CRON_SECRET) in production.
+[functions.process-reminders]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

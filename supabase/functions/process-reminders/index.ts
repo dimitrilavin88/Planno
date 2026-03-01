@@ -95,9 +95,23 @@ async function sendTwilioSms(to: string, body: string): Promise<{ success: boole
   }
 }
 
+const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  // Optional: require shared secret when set (e.g. for pg_net/cron calls)
+  if (CRON_SECRET) {
+    const authHeader = req.headers.get('authorization')
+    const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : ''
+    if (bearer !== CRON_SECRET) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
+    }
   }
 
   const nowIso = new Date().toISOString()

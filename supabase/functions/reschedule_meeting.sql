@@ -98,6 +98,23 @@ BEGIN
     updated_at = NOW()
   WHERE id = p_meeting_id;
 
+  -- Audit: booking rescheduled
+  INSERT INTO public.workflow_audit_log (event_type, actor_user_id, resource_type, resource_id, action, details)
+  VALUES (
+    'booking_rescheduled',
+    NULL,
+    'meeting',
+    p_meeting_id,
+    'updated',
+    jsonb_build_object(
+      'host_user_id', v_meeting.host_user_id,
+      'old_start_time', v_old_start_time,
+      'new_start_time', p_new_start_time,
+      'old_end_time', v_old_end_time,
+      'new_end_time', v_new_end_time
+    )
+  );
+
   -- Return success
   RETURN jsonb_build_object(
     'success', true,

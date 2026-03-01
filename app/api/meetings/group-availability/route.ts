@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth/utils'
+import { requireApiRateLimit } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
@@ -9,6 +10,9 @@ import { NextRequest, NextResponse } from 'next/server'
  * When excludeMeetingId is set (reschedule), that meeting is excluded from conflict check.
  */
 export async function POST(request: NextRequest) {
+  const rateLimit = await requireApiRateLimit(request, 'api:group-availability', 30, 60)
+  if (!rateLimit.ok) return rateLimit.response
+
   await requireAuth()
   const supabase = await createClient()
 

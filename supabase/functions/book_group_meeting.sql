@@ -20,6 +20,7 @@ DECLARE
   v_has_conflict BOOLEAN;
   v_host_email TEXT;
   v_participant_is_host BOOLEAN := false;
+  v_bucket_key TEXT;
 BEGIN
   -- Get group event type details
   SELECT *
@@ -32,6 +33,18 @@ BEGIN
     RETURN jsonb_build_object(
       'success', false,
       'error', 'Group event type not found or inactive'
+    );
+  END IF;
+
+  -- Rate limit: per user (authenticated) or per anon key (email+event+slot)
+  v_bucket_key := CASE
+    WHEN auth.uid() IS NOT NULL THEN 'booking:group:' || auth.uid()::TEXT
+    ELSE 'booking:group:anon:' || md5(LOWER(TRIM(COALESCE(p_participant_email, ''))) || ':' || p_group_event_type_id::TEXT || ':' || p_start_time::TEXT)
+  END;
+  IF NOT public.check_rate_limit(v_bucket_key, 10, 60) THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Too many booking attempts. Please try again in a minute.'
     );
   END IF;
 
@@ -194,6 +207,22 @@ BEGIN
       'pending'
     );
   END IF;
+
+  -- Audit: group booking created
+  INSERT INTO public.workflow_audit_log (event_type, actor_user_id, resource_type, resource_id, action, details)
+  VALUES (
+    'booking_created',
+    v_host.id,
+    'meeting',
+    v_meeting_id,
+    'created',
+    jsonb_build_object(
+      'host_user_id', v_host.id,
+      'group_event_type_id', p_group_event_type_id,
+      'start_time', p_start_time,
+      'end_time', v_end_time
+    )
+  );
 
   RETURN jsonb_build_object(
     'success', true,

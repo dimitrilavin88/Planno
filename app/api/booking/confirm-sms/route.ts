@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireApiRateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  const rateLimit = await requireApiRateLimit(request, 'api:confirm-sms', 10, 60)
+  if (!rateLimit.ok) return rateLimit.response
+
   try {
     const body = await request.json()
     const meetingId = typeof body?.meetingId === 'string' ? body.meetingId.trim() : ''

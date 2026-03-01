@@ -28,23 +28,36 @@ DECLARE v_event_type RECORD;
   v_lock_expires_at TIMESTAMPTZ;
   v_has_conflict BOOLEAN;
   v_daily_count INTEGER;
-v_host_email TEXT;
+  v_host_email TEXT;
+  v_bucket_key TEXT;
 BEGIN -- Start transaction (function runs in transaction automatically)
   -- Get event type and user information
-SELECT et.*,
-  u.timezone as user_timezone INTO v_event_type
+  SELECT et.*,
+    u.timezone as user_timezone INTO v_event_type
   FROM public.event_types et
   JOIN public.users u ON u.id = et.user_id
   WHERE et.id = p_event_type_id
     AND et.is_active = true
     AND et.user_id = p_host_user_id;
-IF NOT FOUND THEN RETURN jsonb_build_object(
-  'success',
-  false,
-  'error',
-  'Event type not found, inactive, or access denied'
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Event type not found, inactive, or access denied'
     );
   END IF;
+
+  -- Rate limit: per user (authenticated) or per anon key (email+event+slot)
+  v_bucket_key := CASE
+    WHEN auth.uid() IS NOT NULL THEN 'booking:' || auth.uid()::TEXT
+    ELSE 'booking:anon:' || md5(LOWER(TRIM(COALESCE(p_participant_email, ''))) || ':' || p_event_type_id::TEXT || ':' || p_start_time::TEXT)
+  END;
+  IF NOT public.check_rate_limit(v_bucket_key, 10, 60) THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Too many booking attempts. Please try again in a minute.'
+    );
+  END IF;
+
   -- Calculate end time
   v_duration_minutes := v_event_type.duration_minutes;
   v_end_time := p_start_time + (v_duration_minutes || ' minutes')::INTERVAL;
@@ -272,6 +285,22 @@ END IF;
       'pending'
     );
   END IF;
+
+  -- Audit: booking created
+  INSERT INTO public.workflow_audit_log (event_type, actor_user_id, resource_type, resource_id, action, details)
+  VALUES (
+    'booking_created',
+    p_host_user_id,
+    'meeting',
+    v_meeting_id,
+    'created',
+    jsonb_build_object(
+      'host_user_id', p_host_user_id,
+      'event_type_id', p_event_type_id,
+      'start_time', p_start_time,
+      'end_time', v_end_time
+    )
+  );
 
   -- Return success with meeting ID
   RETURN jsonb_build_object(
