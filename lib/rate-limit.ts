@@ -24,6 +24,13 @@ export function getClientIp(request: NextRequest): string {
   return 'unknown'
 }
 
+/** Params for the check_rate_limit RPC (custom function; not in generated DB types). */
+type CheckRateLimitParams = {
+  p_bucket_key: string
+  p_max_count: number
+  p_window_seconds: number
+}
+
 /**
  * Checks rate limit for the given bucket key. Returns true if under limit, false if over.
  * Uses Supabase service role to call check_rate_limit (only server can call with arbitrary keys).
@@ -34,11 +41,18 @@ export async function checkApiRateLimit(
   windowSeconds: number = DEFAULT_WINDOW_SEC
 ): Promise<boolean> {
   const supabase = getAdminClient()
-  const { data, error } = await supabase.rpc('check_rate_limit', {
+  const params: CheckRateLimitParams = {
     p_bucket_key: bucketKey,
     p_max_count: maxCount,
     p_window_seconds: windowSeconds,
-  })
+  }
+  const { data, error } = await (supabase.rpc as (
+    name: string,
+    params: CheckRateLimitParams
+  ) => Promise<{ data: boolean | null; error: { message: string } | null }>)(
+    'check_rate_limit',
+    params
+  )
   if (error) {
     console.error('[rate-limit] check_rate_limit RPC error:', error.message)
     return true
